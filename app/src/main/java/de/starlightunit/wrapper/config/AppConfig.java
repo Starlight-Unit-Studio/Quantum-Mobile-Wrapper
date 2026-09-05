@@ -1,11 +1,10 @@
 package de.starlightunit.wrapper.config;
 
 public final class AppConfig {
-
     public static final String START_URL = "https://game.starlight-unit.de/index_01.html";
     public static final String TRUSTED_DOMAIN = "starlight-unit.de";
     public static final String VERSION_NAME = "0.1.0-beta1";
-    public static final String USER_AGENT_SUFFIX = "StarlightUnitAndroid/" + VERSION_NAME;
+    public static final String USER_AGENT_SUFFIX = " StarlightUnitAndroid/" + VERSION_NAME;
 
     public static final String NATIVE_MEDIA_BRIDGE_NAME = "QuantumNMP";
 
@@ -16,8 +15,8 @@ public final class AppConfig {
     public static final String APP_HEADER_VALUE = "starlight-unit-game";
 
     public static final boolean KEEP_SCREEN_ON = true;
-    public static final boolean ALLOW_MEDIA_AUTOPLAY = true;
-    public static final boolean ACCEPT_THIRD_PARTY_COOKIES = true;
+    public static final boolean ALLOW_AUTOPLAY_MEDIA = true;
+    public static final boolean ALLOW_THIRD_PARTY_COOKIES = true;
 
     private AppConfig() {
     }

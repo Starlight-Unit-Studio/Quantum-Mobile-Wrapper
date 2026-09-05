@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.net.http.SslError;
-import android.webkit.SafeBrowsingResponse;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -21,136 +20,123 @@ import java.util.Map;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 
 public final class GameWebViewClient extends WebViewClient {
+    public interface Callbacks {
+        void onPageLoading();
+        void onPageReady();
+        void onMainFrameError();
+    }
 
     private final Context context;
     private final NavigationPolicy navigationPolicy;
-    private final PageErrorHandler errorHandler;
+    private final Callbacks callbacks;
     private final Map<String, String> requestHeaders;
 
     public GameWebViewClient(
             Context context,
             NavigationPolicy navigationPolicy,
-            PageErrorHandler errorHandler,
+            Callbacks callbacks,
             Map<String, String> requestHeaders
     ) {
         this.context = context;
         this.navigationPolicy = navigationPolicy;
-        this.errorHandler = errorHandler;
+        this.callbacks = callbacks;
         this.requestHeaders = Collections.unmodifiableMap(new LinkedHashMap<>(requestHeaders));
     }
 
     @Override
-    public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-        Uri uri = request.getUrl();
-
-        if (navigationPolicy.isTrustedHttps(uri)) {
-            if (request.isForMainFrame()
-                    && "GET".equalsIgnoreCase(request.getMethod())
-                    && !WrapperRequestHeaders.containsConfiguredHeaders(request.getRequestHeaders())) {
-                view.loadUrl(uri.toString(), requestHeaders);
-                return true;
-            }
-            return false;
-        }
-
-        if (navigationPolicy.shouldStayInWebView(uri)) {
-            return false;
-        }
-
-        if (!request.isForMainFrame()) {
-            return false;
-        }
-
-        return openExternal(uri);
-    }
-
-    @Override
-    @SuppressWarnings("deprecation")
-    public boolean shouldOverrideUrlLoading(WebView view, String url) {
-        Uri uri = Uri.parse(url);
-
-        if (navigationPolicy.shouldStayInWebView(uri)) {
-            return false;
-        }
-
-        return openExternal(uri);
-    }
-
-    private boolean openExternal(Uri uri) {
-        if (!navigationPolicy.shouldOpenExternally(uri)) {
-            return true;
-        }
-
-        Intent intent = navigationPolicy.buildExternalIntent(uri);
-        if (intent == null) {
-            return true;
-        }
-
-        try {
-            context.startActivity(intent);
-        } catch (ActivityNotFoundException ignored) {
-            // No compatible Android activity is installed.
-        }
-
-        return true;
-    }
-
-    @Override
     public void onPageStarted(WebView view, String url, Bitmap favicon) {
-        errorHandler.hidePageError();
+        callbacks.onPageLoading();
     }
 
     @Override
     public void onPageFinished(WebView view, String url) {
-        errorHandler.hidePageError();
+        callbacks.onPageReady();
     }
 
     @Override
-    public void onReceivedError(
-            WebView view,
-            WebResourceRequest request,
-            WebResourceError error
-    ) {
+    public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+        String url = request.getUrl().toString();
+        if (navigationPolicy.isTrustedHttps(url)) {
+            if (request.isForMainFrame()
+                    && "GET".equalsIgnoreCase(request.getMethod())
+                    && !WrapperRequestHeaders.containsConfiguredHeaders(request.getRequestHeaders())) {
+                view.loadUrl(url, requestHeaders);
+                return true;
+            }
+            return false;
+        }
+        return handleNavigation(url);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    public boolean shouldOverrideUrlLoading(WebView view, String url) {
+        return handleNavigation(url);
+    }
+
+    @Override
+    public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
         if (request.isForMainFrame()) {
-            errorHandler.showPageError("Die Spielseite konnte nicht geladen werden.");
+            callbacks.onMainFrameError();
         }
     }
 
     @Override
-    public void onReceivedHttpError(
-            WebView view,
-            WebResourceRequest request,
-            WebResourceResponse errorResponse
-    ) {
-        if (request.isForMainFrame() && errorResponse.getStatusCode() >= 400) {
-            errorHandler.showPageError(
-                    "Der Server antwortet mit HTTP " + errorResponse.getStatusCode() + "."
-            );
+    public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
+        if (request.isForMainFrame() && errorResponse.getStatusCode() >= 500) {
+            callbacks.onMainFrameError();
         }
     }
 
     @Override
     public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
         handler.cancel();
-
         String currentUrl = view.getUrl();
         if (currentUrl != null && currentUrl.equals(error.getUrl())) {
-            errorHandler.showPageError("TLS-Zertifikatsfehler. Verbindung wurde abgebrochen.");
+            callbacks.onMainFrameError();
         }
     }
 
-    @Override
-    public void onSafeBrowsingHit(
-            WebView view,
-            WebResourceRequest request,
-            int threatType,
-            SafeBrowsingResponse callback
-    ) {
-        callback.backToSafety(true);
+    private boolean handleNavigation(String url) {
+        if (navigationPolicy.shouldStayInWebView(url)) {
+            return false;
+        }
+
+        if (!isAllowedExternalScheme(url)) {
+            return true;
+        }
+
+        try {
+            Intent intent;
+            String scheme = Uri.parse(url).getScheme();
+            if ("intent".equalsIgnoreCase(scheme)) {
+                intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+                intent.setComponent(null);
+                intent.setSelector(null);
+            } else {
+                intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            }
+            intent.addCategory(Intent.CATEGORY_BROWSABLE);
+            context.startActivity(intent);
+        } catch (ActivityNotFoundException | SecurityException | java.net.URISyntaxException ignored) {
+            // Unsupported external targets are blocked instead of being loaded inside the game WebView.
+        }
+        return true;
     }
 
-    public interface PageErrorHandler {
-        void showPageError(String message);
-        void hidePageError();
+    private static boolean isAllowedExternalScheme(String url) {
+        Uri uri = Uri.parse(url);
+        String scheme = uri.getScheme();
+        if (scheme == null) {
+            return false;
+        }
+        String normalized = scheme.toLowerCase(java.util.Locale.ROOT);
+        return "https".equals(normalized)
+                || "http".equals(normalized)
+                || "mailto".equals(normalized)
+                || "tel".equals(normalized)
+                || "geo".equals(normalized)
+                || "market".equals(normalized)
+                || "intent".equals(normalized);
     }
 }

@@ -1,161 +1,65 @@
 package de.starlightunit.wrapper.navigation;
 
-import android.content.Intent;
-import android.net.Uri;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Locale;
-import java.util.Set;
 
 public final class NavigationPolicy {
-
-    private static final Set<String> INTERNAL_SPECIAL_SCHEMES =
-            Set.of("about", "data", "blob", "javascript");
-
-    private static final Set<String> EXTERNAL_SCHEMES =
-            Set.of("http", "mailto", "tel", "geo", "market", "intent");
-
     private final String trustedDomain;
 
     public NavigationPolicy(String trustedDomain) {
-        this.trustedDomain = normalizeDomain(trustedDomain);
+        this.trustedDomain = trustedDomain.toLowerCase(Locale.ROOT);
     }
 
-    public boolean shouldStayInWebView(Uri uri) {
-        if (uri == null) {
-            return false;
-        }
-
-        String scheme = normalizedScheme(uri.getScheme());
-
-        if (INTERNAL_SPECIAL_SCHEMES.contains(scheme)) {
-            return true;
-        }
-
-        return isTrustedHttps(uri);
-    }
-
-    public boolean isTrustedHttps(Uri uri) {
-        if (uri == null || !"https".equals(normalizedScheme(uri.getScheme()))) {
-            return false;
-        }
-
-        return isTrustedHost(lower(uri.getHost()), trustedDomain);
-    }
-
-    public boolean isTrustedHttps(String rawUrl) {
-        return isTrustedHttpsUrlForTest(rawUrl, trustedDomain);
-    }
-
-    public boolean shouldOpenExternally(Uri uri) {
-        if (uri == null) {
-            return false;
-        }
-
-        String scheme = normalizedScheme(uri.getScheme());
-
-        if (EXTERNAL_SCHEMES.contains(scheme)) {
-            return true;
-        }
-
-        return "https".equals(scheme) && !shouldStayInWebView(uri);
-    }
-
-    public Intent buildExternalIntent(Uri uri) {
-        if (uri == null || !shouldOpenExternally(uri)) {
-            return null;
-        }
-
-        String scheme = normalizedScheme(uri.getScheme());
-
-        if ("intent".equals(scheme)) {
-            try {
-                Intent intent = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME);
-                intent.setComponent(null);
-                intent.setSelector(null);
-                return intent;
-            } catch (java.net.URISyntaxException ignored) {
-                return null;
-            }
-        }
-
-        return new Intent(Intent.ACTION_VIEW, uri);
-    }
-
-    static boolean isTrustedHttpsUrlForTest(String rawUrl, String trustedDomain) {
-        if (rawUrl == null) {
+    public boolean shouldStayInWebView(String rawUrl) {
+        if (rawUrl == null || rawUrl.trim().isEmpty()) {
             return false;
         }
 
         try {
             URI uri = new URI(rawUrl);
-            return "https".equalsIgnoreCase(uri.getScheme())
-                    && isTrustedHost(lower(uri.getHost()), normalizeDomain(trustedDomain));
+            String scheme = normalized(uri.getScheme());
+
+            if (isWebViewOwnedScheme(scheme)) {
+                return true;
+            }
+
+            return isTrustedHttpsUri(uri, scheme);
         } catch (URISyntaxException ignored) {
             return false;
         }
     }
 
-    static boolean isExternalSchemeForTest(String rawUrl) {
-        if (rawUrl == null) {
+    public boolean isTrustedHttps(String rawUrl) {
+        if (rawUrl == null || rawUrl.trim().isEmpty()) {
             return false;
         }
-
-        String scheme;
 
         try {
-            scheme = normalizedScheme(new URI(rawUrl).getScheme());
+            URI uri = new URI(rawUrl);
+            return isTrustedHttpsUri(uri, normalized(uri.getScheme()));
         } catch (URISyntaxException ignored) {
             return false;
         }
-
-        return EXTERNAL_SCHEMES.contains(scheme);
     }
 
-    static boolean isInternalSpecialSchemeForTest(String rawUrl) {
-        if (rawUrl == null) {
+    private boolean isTrustedHttpsUri(URI uri, String scheme) {
+        if (!"https".equals(scheme)) {
             return false;
         }
 
-        String scheme;
-
-        try {
-            scheme = normalizedScheme(new URI(rawUrl).getScheme());
-        } catch (URISyntaxException ignored) {
-            return false;
-        }
-
-        return INTERNAL_SPECIAL_SCHEMES.contains(scheme);
-    }
-
-    private static boolean isTrustedHost(String host, String trustedDomain) {
-        if (host == null || trustedDomain.isEmpty()) {
-            return false;
-        }
-
+        String host = normalized(uri.getHost());
         return host.equals(trustedDomain) || host.endsWith("." + trustedDomain);
     }
 
-    private static String normalizeDomain(String domain) {
-        if (domain == null) {
-            return "";
-        }
-
-        String normalized = lower(domain.trim());
-
-        while (normalized.startsWith(".")) {
-            normalized = normalized.substring(1);
-        }
-
-        return normalized;
+    private static boolean isWebViewOwnedScheme(String scheme) {
+        return "about".equals(scheme)
+                || "data".equals(scheme)
+                || "blob".equals(scheme)
+                || "javascript".equals(scheme);
     }
 
-    private static String normalizedScheme(String scheme) {
-        return scheme == null ? "" : scheme.toLowerCase(Locale.ROOT);
-    }
-
-    private static String lower(String value) {
-        return value == null ? null : value.toLowerCase(Locale.ROOT);
+    private static String normalized(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT);
     }
 }

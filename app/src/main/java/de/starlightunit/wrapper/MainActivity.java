@@ -1,14 +1,22 @@
 package de.starlightunit.wrapper;
 
-import android.Manifest;
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.widget.Button;
-import android.widget.TextView;
+import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 
 import java.util.Map;
 
@@ -22,15 +30,19 @@ import de.starlightunit.wrapper.web.GameWebViewClient;
 import de.starlightunit.wrapper.web.WebViewConfigurator;
 import de.starlightunit.wrapper.web.WrapperRequestHeaders;
 
-public final class MainActivity extends Activity implements GameWebViewClient.PageErrorHandler {
+public final class MainActivity extends Activity
+        implements GameWebChromeClient.FileChooserHost,
+        GameWebViewClient.Callbacks,
+        GameWebChromeClient.Callbacks {
 
-    private static final int POST_NOTIFICATIONS_REQUEST_CODE = 1001;
+    private static final int FILE_CHOOSER_REQUEST = 7001;
 
     private WebView webView;
-    private View errorView;
-    private TextView errorMessageView;
+    private ProgressBar progressBar;
+    private View errorPanel;
     private GameWebChromeClient chromeClient;
-    private android.webkit.ValueCallback<android.net.Uri[]> fileChooserCallback;
+    private ValueCallback<android.net.Uri[]> pendingFileCallback;
+    private boolean mainFrameFailed;
     private NavigationPolicy navigationPolicy;
     private Map<String, String> requestHeaders;
     private QuantumNativeMediaPlayer nativeMediaPlayer;
@@ -38,111 +50,42 @@ public final class MainActivity extends Activity implements GameWebViewClient.Pa
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        if (AppConfig.KEEP_SCREEN_ON) {
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        }
-
-        if (getActionBar() != null) {
-            getActionBar().hide();
-        }
-
+        configureWindow();
         setContentView(R.layout.activity_main);
 
         webView = findViewById(R.id.web_view);
-        errorView = findViewById(R.id.error_view);
-        errorMessageView = findViewById(R.id.error_message);
+        progressBar = findViewById(R.id.progress);
+        errorPanel = findViewById(R.id.error_panel);
+        FrameLayout fullscreenContainer = findViewById(R.id.fullscreen_container);
         Button retryButton = findViewById(R.id.retry_button);
+
+        WebViewConfigurator.configure(this, webView);
 
         navigationPolicy = new NavigationPolicy(AppConfig.TRUSTED_DOMAIN);
         requestHeaders = WrapperRequestHeaders.create();
         nativeMediaPlayer = new QuantumNativeMediaPlayer(this);
-
-        WebViewConfigurator.configure(webView, this);
         webView.addJavascriptInterface(
                 new QuantumNativeMediaBridge(webView, navigationPolicy, nativeMediaPlayer),
                 AppConfig.NATIVE_MEDIA_BRIDGE_NAME
         );
-
-        GameWebViewClient webViewClient = new GameWebViewClient(
-                this,
-                navigationPolicy,
-                this,
-                requestHeaders
-        );
-        webView.setWebViewClient(webViewClient);
-
-        chromeClient = new GameWebChromeClient(this, webView, this::onFileChooserRequested);
+        webView.setWebViewClient(new GameWebViewClient(this, navigationPolicy, this, requestHeaders));
+        chromeClient = new GameWebChromeClient(fullscreenContainer, this, this);
         webView.setWebChromeClient(chromeClient);
-
         webView.setDownloadListener(new AppDownloadListener(this));
 
         retryButton.setOnClickListener(v -> {
-            hidePageError();
+            errorPanel.setVisibility(View.GONE);
+            mainFrameFailed = false;
             loadTrustedUrl(webView.getUrl());
         });
 
-        registerBackHandler();
-        requestNotificationPermissionIfNeeded();
-
-        if (savedInstanceState != null) {
-            webView.restoreState(savedInstanceState);
-        } else {
+        if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
             loadTrustedUrl(AppConfig.START_URL);
         }
-    }
 
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        webView.saveState(outState);
-        super.onSaveInstanceState(outState);
-    }
-
-    @Override
-    protected void onPause() {
-        webView.onPause();
-        super.onPause();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        webView.onResume();
-    }
-
-    @Override
-    protected void onDestroy() {
-        if (fileChooserCallback != null) {
-            fileChooserCallback.onReceiveValue(null);
-            fileChooserCallback = null;
+        if (Build.VERSION.SDK_INT >= 33) {
+            Api33BackHandler.register(this);
         }
-
-        if (nativeMediaPlayer != null) {
-            nativeMediaPlayer.release();
-            nativeMediaPlayer = null;
-        }
-
-        if (webView != null) {
-            webView.removeJavascriptInterface(AppConfig.NATIVE_MEDIA_BRIDGE_NAME);
-            webView.stopLoading();
-            webView.setWebChromeClient(null);
-            webView.setWebViewClient(null);
-            webView.removeAllViews();
-            webView.destroy();
-        }
-
-        super.onDestroy();
-    }
-
-    @Override
-    public void showPageError(String message) {
-        errorMessageView.setText(message);
-        errorView.setVisibility(View.VISIBLE);
-    }
-
-    @Override
-    public void hidePageError() {
-        errorView.setVisibility(View.GONE);
     }
 
     private void loadTrustedUrl(String requestedUrl) {
@@ -152,61 +95,179 @@ public final class MainActivity extends Activity implements GameWebViewClient.Pa
         webView.loadUrl(targetUrl, requestHeaders);
     }
 
-    private void onFileChooserRequested(android.webkit.ValueCallback<android.net.Uri[]> callback) {
-        if (fileChooserCallback != null) {
-            fileChooserCallback.onReceiveValue(null);
+    private void configureWindow() {
+        Window window = getWindow();
+        window.setStatusBarColor(Color.BLACK);
+        window.setNavigationBarColor(Color.BLACK);
+        if (AppConfig.KEEP_SCREEN_ON) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
-        fileChooserCallback = callback;
-        fileChooserLauncher.launch(new String[]{"*/*"});
+        enterImmersiveMode();
     }
 
-    private final androidx.activity.result.ActivityResultLauncher<String[]> fileChooserLauncher =
-            registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
-                    result -> {
-                        if (fileChooserCallback != null) {
-                            fileChooserCallback.onReceiveValue(
-                                    result == null ? null : new android.net.Uri[]{result}
-                            );
-                            fileChooserCallback = null;
-                        }
-                    });
-
-    private void registerBackHandler() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
-                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-                    this::handleBackPressed
+    private void enterImmersiveMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                controller.setSystemBarsBehavior(
+                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                );
+            }
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             );
         }
     }
 
     @Override
-    public void onBackPressed() {
-        handleBackPressed();
+    public void openFileChooser(
+            ValueCallback<android.net.Uri[]> callback,
+            WebChromeClient.FileChooserParams params
+    ) {
+        if (pendingFileCallback != null) {
+            pendingFileCallback.onReceiveValue(null);
+        }
+        pendingFileCallback = callback;
+
+        try {
+            Intent chooserIntent = params.createIntent();
+            startActivityForResult(chooserIntent, FILE_CHOOSER_REQUEST);
+        } catch (ActivityNotFoundException ignored) {
+            pendingFileCallback.onReceiveValue(null);
+            pendingFileCallback = null;
+        }
     }
 
-    private void handleBackPressed() {
-        if (chromeClient != null && chromeClient.isInCustomView()) {
+    @Override
+    @SuppressWarnings("deprecation")
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != FILE_CHOOSER_REQUEST || pendingFileCallback == null) {
+            return;
+        }
+
+        android.net.Uri[] result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+        pendingFileCallback.onReceiveValue(result);
+        pendingFileCallback = null;
+    }
+
+    @Override
+    public void onPageLoading() {
+        mainFrameFailed = false;
+        errorPanel.setVisibility(View.GONE);
+        progressBar.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    public void onPageReady() {
+        progressBar.setVisibility(View.GONE);
+        if (!mainFrameFailed) {
+            errorPanel.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    public void onMainFrameError() {
+        mainFrameFailed = true;
+        progressBar.setVisibility(View.GONE);
+        errorPanel.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    public void onProgress(int progress) {
+        progressBar.setProgress(progress);
+        progressBar.setVisibility(progress >= 100 ? View.GONE : View.VISIBLE);
+    }
+
+    @Override
+    public void onFullscreenChanged(boolean fullscreen) {
+        webView.setVisibility(fullscreen ? View.GONE : View.VISIBLE);
+        enterImmersiveMode();
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        handleBackNavigation();
+    }
+
+    private void handleBackNavigation() {
+        if (chromeClient != null && chromeClient.isShowingCustomView()) {
             chromeClient.onHideCustomView();
             return;
         }
-
-        if (webView.canGoBack()) {
+        if (webView != null && webView.canGoBack()) {
             webView.goBack();
             return;
         }
-
         finishAfterTransition();
     }
 
-    private void requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(
-                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                    POST_NOTIFICATIONS_REQUEST_CODE
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (webView != null) {
+            webView.onResume();
+        }
+        enterImmersiveMode();
+    }
+
+    @Override
+    protected void onPause() {
+        if (webView != null) {
+            webView.onPause();
+        }
+        super.onPause();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        if (webView != null) {
+            webView.saveState(outState);
+        }
+        super.onSaveInstanceState(outState);
+    }
+
+    private static final class Api33BackHandler {
+        private Api33BackHandler() {
+        }
+
+        @android.annotation.TargetApi(33)
+        static void register(MainActivity activity) {
+            activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                    activity::handleBackNavigation
             );
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (pendingFileCallback != null) {
+            pendingFileCallback.onReceiveValue(null);
+            pendingFileCallback = null;
+        }
+        if (webView != null) {
+            webView.removeJavascriptInterface(AppConfig.NATIVE_MEDIA_BRIDGE_NAME);
+        }
+        if (nativeMediaPlayer != null) {
+            nativeMediaPlayer.release();
+            nativeMediaPlayer = null;
+        }
+        if (webView != null) {
+            webView.stopLoading();
+            webView.setWebChromeClient(null);
+            webView.setWebViewClient(null);
+            webView.destroy();
+            webView = null;
+        }
+        super.onDestroy();
     }
 }
