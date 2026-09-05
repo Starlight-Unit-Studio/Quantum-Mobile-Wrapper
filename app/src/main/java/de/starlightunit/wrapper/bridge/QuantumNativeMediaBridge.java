@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import de.starlightunit.wrapper.config.AppConfig;
+import de.starlightunit.wrapper.media.QuantumMediaSourcePolicy;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 
@@ -14,6 +15,7 @@ public final class QuantumNativeMediaBridge {
 
     private final WebView webView;
     private final NavigationPolicy navigationPolicy;
+    private final QuantumMediaSourcePolicy mediaSourcePolicy;
     private final QuantumNativeMediaPlayer mediaPlayer;
 
     public QuantumNativeMediaBridge(
@@ -23,6 +25,10 @@ public final class QuantumNativeMediaBridge {
     ) {
         this.webView = webView;
         this.navigationPolicy = navigationPolicy;
+        this.mediaSourcePolicy = new QuantumMediaSourcePolicy(
+                AppConfig.TRUSTED_DOMAIN,
+                AppConfig.NATIVE_MEDIA_PATH_PREFIX
+        );
         this.mediaPlayer = mediaPlayer;
     }
 
@@ -48,7 +54,7 @@ public final class QuantumNativeMediaBridge {
                 return;
             }
 
-            String trustedSource = resolveTrustedSource(currentUrl, source);
+            String trustedSource = resolveCampaignSource(currentUrl, source);
             if (trustedSource != null) {
                 mediaPlayer.play(trustedSource, loop);
             }
@@ -98,12 +104,11 @@ public final class QuantumNativeMediaBridge {
         });
     }
 
-    private String resolveTrustedSource(String currentUrl, String source) {
+    private String resolveCampaignSource(String currentUrl, String source) {
         try {
             URI baseUri = new URI(currentUrl);
             URI resolvedUri = baseUri.resolve(source);
-            String resolved = resolvedUri.toString();
-            return navigationPolicy.isTrustedHttps(resolved) ? resolved : null;
+            return mediaSourcePolicy.validateAndNormalize(resolvedUri.toString());
         } catch (URISyntaxException | IllegalArgumentException ignored) {
             return null;
         }
