@@ -1,6 +1,6 @@
-# STU Mobile Wrapper
+# Quantum Mobile Wrapper
 
-Native Android shell for Starlight Unit web applications.
+Native Android shell for Starlight web applications.
 
 ## Beta target
 
@@ -28,6 +28,8 @@ Version: `0.1.0-beta1`
 - Release builds with WebView debugging disabled
 - Unit-tested domain navigation policy
 - GitHub Actions build for API 36
+- Quantum NMP native music bridge for persistent in-app soundtrack playback
+- Starlight wrapper/app/version request markers on trusted top-level GET navigation
 
 ## Configuration
 
@@ -36,6 +38,10 @@ Runtime product values are centralized in:
 `app/src/main/java/de/starlightunit/wrapper/config/AppConfig.java`
 
 This keeps the shell reusable without scattering URLs and host rules through Activity code.
+
+Quantum NMP is documented in `docs/QUANTUM_NMP.md`. Its bridge is exposed to trusted game pages as `window.QuantumNMP`.
+
+The custom request headers identify the wrapper to the web application, but they are intentionally documented as client markers rather than authentication because arbitrary HTTP clients can spoof static headers.
 
 ## Build
 
@@ -69,11 +75,11 @@ No release keystore is stored in this repository. Release signing should be supp
 
 ## Branding note
 
-The current launcher star is a temporary neutral placeholder. Replace it with the approved Starlight Unit app artwork before the public store release.
+The current launcher star is a temporary neutral placeholder. Replace it with the approved Starlight Unit game artwork before the public store release.
 
 ## License
 
-STU Mobile Wrapper is source-available under the **Starlight Unit Studios Mobile Wrapper Community Source License 1.0**.
+Quantum Mobile Wrapper is source-available under the **Starlight Unit Studios Mobile Wrapper Community Source License 1.0**.
 
 Important practical distinction:
 

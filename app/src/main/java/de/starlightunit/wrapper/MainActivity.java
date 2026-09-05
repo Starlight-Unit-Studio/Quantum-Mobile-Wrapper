@@ -18,12 +18,17 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 
+import java.util.Map;
+
+import de.starlightunit.wrapper.bridge.QuantumNativeMediaBridge;
 import de.starlightunit.wrapper.config.AppConfig;
 import de.starlightunit.wrapper.download.AppDownloadListener;
+import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 import de.starlightunit.wrapper.web.GameWebChromeClient;
 import de.starlightunit.wrapper.web.GameWebViewClient;
 import de.starlightunit.wrapper.web.WebViewConfigurator;
+import de.starlightunit.wrapper.web.WrapperRequestHeaders;
 
 public final class MainActivity extends Activity
         implements GameWebChromeClient.FileChooserHost,
@@ -38,6 +43,9 @@ public final class MainActivity extends Activity
     private GameWebChromeClient chromeClient;
     private ValueCallback<android.net.Uri[]> pendingFileCallback;
     private boolean mainFrameFailed;
+    private NavigationPolicy navigationPolicy;
+    private Map<String, String> requestHeaders;
+    private QuantumNativeMediaPlayer nativeMediaPlayer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,8 +61,14 @@ public final class MainActivity extends Activity
 
         WebViewConfigurator.configure(this, webView);
 
-        NavigationPolicy navigationPolicy = new NavigationPolicy(AppConfig.TRUSTED_DOMAIN);
-        webView.setWebViewClient(new GameWebViewClient(this, navigationPolicy, this));
+        navigationPolicy = new NavigationPolicy(AppConfig.TRUSTED_DOMAIN);
+        requestHeaders = WrapperRequestHeaders.create();
+        nativeMediaPlayer = new QuantumNativeMediaPlayer(this);
+        webView.addJavascriptInterface(
+                new QuantumNativeMediaBridge(webView, navigationPolicy, nativeMediaPlayer),
+                AppConfig.NATIVE_MEDIA_BRIDGE_NAME
+        );
+        webView.setWebViewClient(new GameWebViewClient(this, navigationPolicy, this, requestHeaders));
         chromeClient = new GameWebChromeClient(fullscreenContainer, this, this);
         webView.setWebChromeClient(chromeClient);
         webView.setDownloadListener(new AppDownloadListener(this));
@@ -62,16 +76,23 @@ public final class MainActivity extends Activity
         retryButton.setOnClickListener(v -> {
             errorPanel.setVisibility(View.GONE);
             mainFrameFailed = false;
-            webView.reload();
+            loadTrustedUrl(webView.getUrl());
         });
 
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
-            webView.loadUrl(AppConfig.START_URL);
+            loadTrustedUrl(AppConfig.START_URL);
         }
 
         if (Build.VERSION.SDK_INT >= 33) {
             Api33BackHandler.register(this);
         }
+    }
+
+    private void loadTrustedUrl(String requestedUrl) {
+        String targetUrl = navigationPolicy.isTrustedHttps(requestedUrl)
+                ? requestedUrl
+                : AppConfig.START_URL;
+        webView.loadUrl(targetUrl, requestHeaders);
     }
 
     private void configureWindow() {
@@ -232,6 +253,13 @@ public final class MainActivity extends Activity
         if (pendingFileCallback != null) {
             pendingFileCallback.onReceiveValue(null);
             pendingFileCallback = null;
+        }
+        if (webView != null) {
+            webView.removeJavascriptInterface(AppConfig.NATIVE_MEDIA_BRIDGE_NAME);
+        }
+        if (nativeMediaPlayer != null) {
+            nativeMediaPlayer.release();
+            nativeMediaPlayer = null;
         }
         if (webView != null) {
             webView.stopLoading();

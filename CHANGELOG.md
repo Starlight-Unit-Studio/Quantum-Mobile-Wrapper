@@ -1,28 +1,24 @@
 # Changelog
 
-## 0.1.0-beta1 - 2026-09-05
+## 0.1.0-beta1
 
-Initial native Android beta shell for Starlight Unit.
+Initial beta foundation.
 
-### Added
-
-- Direct launch into `https://game.starlight-unit.de/index_01.html`
-- HTTPS-only WebView with Safe Browsing and mixed-content blocking
-- Cookie and DOM storage compatibility for the existing web game
-- STU-domain navigation policy with lookalike-domain protection
-- External browser and app handoff for non-STU links and supported schemes
-- HTML file chooser support
-- Authenticated DownloadManager integration
-- HTML fullscreen and immersive Android fullscreen handling
-- WebView-aware system back navigation including Android 13+ back callbacks
-- Offline/main-frame failure screen with retry
-- Debug-only WebView inspection
-- Unit tests for domain navigation policy
-- GitHub Actions build targeting Android 16 / API 36
-
-### Known limits
-
-- Launcher artwork is a temporary neutral placeholder
-- Camera capture from HTML file inputs is not wired yet
-- Blob/data downloads are not exported through DownloadManager
-- Release signing is intentionally not configured until the permanent package ID and signing key are confirmed
+- Java 17 Android WebView wrapper.
+- Android 16 / API 36 target.
+- Direct load of the Starlight Unit Game URL.
+- Persistent cookies and DOM storage.
+- File upload through the system document picker.
+- Download integration through Android `DownloadManager`.
+- Trusted STU-domain navigation in-app; external links handed to Android.
+- Native/custom HTML fullscreen support.
+- Immersive fullscreen UI.
+- Back navigation that respects WebView history.
+- Retry overlay for main-frame loading/TLS/HTTP failures.
+- WebView Safe Browsing enabled.
+- Cleartext HTTP and mixed content disabled.
+- CI for unit tests and debug APK generation.
+- Quantum NMP beta bridge with native OGG-capable Android media playback that survives ordinary WebView page navigation.
+- Persistent native music enabled/volume preferences exposed to the game through `window.QuantumNMP`.
+- Starlight wrapper/app/version request markers on trusted top-level GET navigation.
+- Trusted-origin checks for side-effecting native media bridge commands.

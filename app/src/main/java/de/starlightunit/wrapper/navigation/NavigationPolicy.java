@@ -24,15 +24,32 @@ public final class NavigationPolicy {
                 return true;
             }
 
-            if (!"https".equals(scheme)) {
-                return false;
-            }
-
-            String host = normalized(uri.getHost());
-            return host.equals(trustedDomain) || host.endsWith("." + trustedDomain);
+            return isTrustedHttpsUri(uri, scheme);
         } catch (URISyntaxException ignored) {
             return false;
         }
+    }
+
+    public boolean isTrustedHttps(String rawUrl) {
+        if (rawUrl == null || rawUrl.trim().isEmpty()) {
+            return false;
+        }
+
+        try {
+            URI uri = new URI(rawUrl);
+            return isTrustedHttpsUri(uri, normalized(uri.getScheme()));
+        } catch (URISyntaxException ignored) {
+            return false;
+        }
+    }
+
+    private boolean isTrustedHttpsUri(URI uri, String scheme) {
+        if (!"https".equals(scheme)) {
+            return false;
+        }
+
+        String host = normalized(uri.getHost());
+        return host.equals(trustedDomain) || host.endsWith("." + trustedDomain);
     }
 
     private static boolean isWebViewOwnedScheme(String scheme) {

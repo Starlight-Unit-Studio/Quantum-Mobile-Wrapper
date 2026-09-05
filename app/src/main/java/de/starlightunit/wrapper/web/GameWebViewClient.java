@@ -13,6 +13,10 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 
 public final class GameWebViewClient extends WebViewClient {
@@ -25,11 +29,18 @@ public final class GameWebViewClient extends WebViewClient {
     private final Context context;
     private final NavigationPolicy navigationPolicy;
     private final Callbacks callbacks;
+    private final Map<String, String> requestHeaders;
 
-    public GameWebViewClient(Context context, NavigationPolicy navigationPolicy, Callbacks callbacks) {
+    public GameWebViewClient(
+            Context context,
+            NavigationPolicy navigationPolicy,
+            Callbacks callbacks,
+            Map<String, String> requestHeaders
+    ) {
         this.context = context;
         this.navigationPolicy = navigationPolicy;
         this.callbacks = callbacks;
+        this.requestHeaders = Collections.unmodifiableMap(new LinkedHashMap<>(requestHeaders));
     }
 
     @Override
@@ -44,7 +55,17 @@ public final class GameWebViewClient extends WebViewClient {
 
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-        return handleNavigation(request.getUrl().toString());
+        String url = request.getUrl().toString();
+        if (navigationPolicy.isTrustedHttps(url)) {
+            if (request.isForMainFrame()
+                    && "GET".equalsIgnoreCase(request.getMethod())
+                    && !WrapperRequestHeaders.containsConfiguredHeaders(request.getRequestHeaders())) {
+                view.loadUrl(url, requestHeaders);
+                return true;
+            }
+            return false;
+        }
+        return handleNavigation(url);
     }
 
     @SuppressWarnings("deprecation")
