@@ -1,0 +1,128 @@
+name: Quantum Mobile Wrapper Release
+
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - CITATION.cff
+      - app/build.gradle
+      - app/src/main/java/de/starlightunit/wrapper/config/AppConfig.java
+      - .github/workflows/release.yml
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
+      - CITATION.cff
+      - app/build.gradle
+      - app/src/main/java/de/starlightunit/wrapper/config/AppConfig.java
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: quantum-mobile-wrapper-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 9.6.0
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 16 SDK
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Read and validate version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid VERSION: $version" >&2
+            exit 1
+          fi
+
+          gradle_version="$(sed -n "s/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*'\([^']*\)'.*/\1/p" app/build.gradle | head -n1)"
+          config_version="$(sed -n 's/.*VERSION_NAME[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' app/src/main/java/de/starlightunit/wrapper/config/AppConfig.java | head -n1)"
+          if [[ "$version" != "$gradle_version" || "$version" != "$config_version" ]]; then
+            echo "Version mismatch: VERSION=$version Gradle=$gradle_version AppConfig=$config_version" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Test and build debug APK
+        run: gradle test assembleDebug --stacktrace
+
+      - name: Prepare release artifacts
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/quantum-mobile-wrapper_${VERSION}_debug.apk"
+          (
+            cd dist
+            sha256sum quantum-mobile-wrapper_*_debug.apk > SHA256SUMS
+          )
+
+      - name: Create GitHub release if absent
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists. Nothing to do."
+            exit 0
+          fi
+
+          args=(
+            "$TAG"
+            "dist/quantum-mobile-wrapper_${VERSION}_debug.apk"
+            dist/SHA256SUMS
+            --target "$GITHUB_SHA"
+            --title "Quantum Mobile Wrapper $VERSION"
+            --generate-notes
+          )
+
+          if [[ "$PRERELEASE" == "true" ]]; then
+            args+=(--prerelease)
+          else
+            args+=(--latest)
+          fi
+
+          gh release create "${args[@]}"

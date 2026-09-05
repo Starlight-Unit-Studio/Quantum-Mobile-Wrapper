@@ -30,6 +30,7 @@ public final class GameWebViewClient extends WebViewClient {
     private final NavigationPolicy navigationPolicy;
     private final Callbacks callbacks;
     private final Map<String, String> requestHeaders;
+    private final CampaignAudioHandoff campaignAudioHandoff;
 
     public GameWebViewClient(
             Context context,
@@ -41,6 +42,7 @@ public final class GameWebViewClient extends WebViewClient {
         this.navigationPolicy = navigationPolicy;
         this.callbacks = callbacks;
         this.requestHeaders = Collections.unmodifiableMap(new LinkedHashMap<>(requestHeaders));
+        this.campaignAudioHandoff = new CampaignAudioHandoff(context);
     }
 
     @Override
@@ -50,6 +52,9 @@ public final class GameWebViewClient extends WebViewClient {
 
     @Override
     public void onPageFinished(WebView view, String url) {
+        if (navigationPolicy.isTrustedHttps(url)) {
+            campaignAudioHandoff.inject(view);
+        }
         callbacks.onPageReady();
     }
 
