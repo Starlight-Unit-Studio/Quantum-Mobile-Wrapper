@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use Quantum Mobile Wrapper, please cite the archived software release."
+title: "Quantum Mobile Wrapper"
+type: software
+authors:
+  - family-names: "Schildgen"
+    given-names: "Patrick"
+    affiliation: "Starlight Unit Studios"
+repository-code: "https://github.com/Starlight-Unit-Studio/Quantum-Mobile-Wrapper"
+url: "https://github.com/Starlight-Unit-Studio/Quantum-Mobile-Wrapper"
+abstract: >-
+  Quantum Mobile Wrapper is the native Android WebView runtime developed by
+  Starlight Unit Studios for packaging trusted Starlight Unit web applications
+  with native capabilities such as Quantum Native Media Player integration.
+keywords:
+  - Android
+  - WebView
+  - native wrapper
+  - Quantum NMP
+  - Starlight Unit Studios
