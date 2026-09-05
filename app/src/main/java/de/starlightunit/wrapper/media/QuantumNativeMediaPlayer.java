@@ -7,6 +7,8 @@ import android.media.MediaPlayer;
 
 import java.io.IOException;
 
+import de.starlightunit.wrapper.config.AppConfig;
+
 public final class QuantumNativeMediaPlayer {
 
     private static final String PREFS_NAME = "quantum_nmp";
@@ -14,6 +16,7 @@ public final class QuantumNativeMediaPlayer {
     private static final String PREF_VOLUME = "volume";
 
     private final SharedPreferences preferences;
+    private final QuantumCampaignMediaStore mediaStore;
 
     private MediaPlayer mediaPlayer;
     private String requestedSource;
@@ -24,8 +27,13 @@ public final class QuantumNativeMediaPlayer {
     private volatile float volume;
 
     public QuantumNativeMediaPlayer(Context context) {
-        preferences = context.getApplicationContext()
-                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        Context appContext = context.getApplicationContext();
+        preferences = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        mediaStore = new QuantumCampaignMediaStore(
+                appContext,
+                AppConfig.TRUSTED_DOMAIN,
+                AppConfig.NATIVE_MEDIA_PATH_PREFIX
+        );
         enabled = preferences.getBoolean(PREF_ENABLED, true);
         volume = clamp(preferences.getFloat(PREF_VOLUME, 1.0f));
     }
@@ -35,26 +43,20 @@ public final class QuantumNativeMediaPlayer {
             return;
         }
 
-        requestedSource = source;
+        String normalizedSource = source.trim();
+        requestedSource = normalizedSource;
         requestedLoop = loop;
 
         if (!enabled) {
             return;
         }
 
-        if (source.equals(currentSource) && mediaPlayer != null) {
-            try {
-                mediaPlayer.setLooping(loop);
-                if (prepared && !mediaPlayer.isPlaying()) {
-                    mediaPlayer.start();
-                }
-                return;
-            } catch (IllegalStateException ignored) {
-                releasePlayerOnly();
-            }
+        if (normalizedSource.equals(currentSource) && mediaPlayer != null) {
+            updateExistingPlayer(loop);
+            return;
         }
 
-        prepareAndPlay(source, loop);
+        resolveAndPlay(normalizedSource);
     }
 
     public void pause() {
@@ -77,7 +79,7 @@ public final class QuantumNativeMediaPlayer {
         }
 
         if (mediaPlayer == null) {
-            prepareAndPlay(requestedSource, requestedLoop);
+            resolveAndPlay(requestedSource);
             return;
         }
 
@@ -90,7 +92,7 @@ public final class QuantumNativeMediaPlayer {
                 mediaPlayer.start();
             }
         } catch (IllegalStateException ignored) {
-            prepareAndPlay(requestedSource, requestedLoop);
+            resolveAndPlay(requestedSource);
         }
     }
 
@@ -139,14 +141,44 @@ public final class QuantumNativeMediaPlayer {
         requestedSource = null;
         currentSource = null;
         releasePlayerOnly();
+        mediaStore.close();
     }
 
-    private void prepareAndPlay(String source, boolean loop) {
+    private void resolveAndPlay(String logicalSource) {
+        mediaStore.resolve(logicalSource, playbackSource -> {
+            if (!enabled || requestedSource == null || !logicalSource.equals(requestedSource)) {
+                return;
+            }
+
+            if (logicalSource.equals(currentSource) && mediaPlayer != null) {
+                updateExistingPlayer(requestedLoop);
+                return;
+            }
+
+            prepareAndPlay(logicalSource, playbackSource, requestedLoop);
+        });
+    }
+
+    private void updateExistingPlayer(boolean loop) {
+        try {
+            mediaPlayer.setLooping(loop);
+            if (prepared && !mediaPlayer.isPlaying()) {
+                mediaPlayer.start();
+            }
+        } catch (IllegalStateException ignored) {
+            releasePlayerOnly();
+            if (requestedSource != null && enabled) {
+                resolveAndPlay(requestedSource);
+            }
+        }
+    }
+
+    private void prepareAndPlay(String logicalSource, String playbackSource, boolean loop) {
         releasePlayerOnly();
 
         MediaPlayer candidate = new MediaPlayer();
         mediaPlayer = candidate;
-        currentSource = source;
+        currentSource = logicalSource;
         prepared = false;
 
         try {
@@ -163,7 +195,7 @@ public final class QuantumNativeMediaPlayer {
 
                 prepared = true;
 
-                if (enabled && source.equals(requestedSource)) {
+                if (enabled && logicalSource.equals(requestedSource)) {
                     try {
                         player.setLooping(requestedLoop);
                         player.start();
@@ -178,7 +210,7 @@ public final class QuantumNativeMediaPlayer {
                 }
                 return true;
             });
-            candidate.setDataSource(source);
+            candidate.setDataSource(playbackSource);
             candidate.prepareAsync();
         } catch (IOException | IllegalArgumentException | IllegalStateException exception) {
             if (mediaPlayer == candidate) {
