@@ -14,6 +14,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -35,7 +36,7 @@ public final class GameWebViewClient extends WebViewClient {
         this.context = context;
         this.navigationPolicy = navigationPolicy;
         this.errorHandler = errorHandler;
-        this.requestHeaders = Map.copyOf(new LinkedHashMap<>(requestHeaders));
+        this.requestHeaders = Collections.unmodifiableMap(new LinkedHashMap<>(requestHeaders));
     }
 
     @Override

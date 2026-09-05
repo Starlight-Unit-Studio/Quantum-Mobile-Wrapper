@@ -38,7 +38,7 @@ public final class QuantumNativeMediaBridge {
 
     @JavascriptInterface
     public void play(String source, boolean loop) {
-        if (source == null || source.isBlank()) {
+        if (source == null || source.trim().isEmpty()) {
             return;
         }
 
