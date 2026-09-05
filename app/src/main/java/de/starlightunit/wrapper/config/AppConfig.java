@@ -7,6 +7,7 @@ public final class AppConfig {
     public static final String USER_AGENT_SUFFIX = " StarlightUnitAndroid/" + VERSION_NAME;
 
     public static final String NATIVE_MEDIA_BRIDGE_NAME = "QuantumNMP";
+    public static final String NATIVE_MEDIA_PATH_PREFIX = "/assets/sounds/campaign/";
 
     public static final String WRAPPER_HEADER_NAME = "X-Starlight-Wrapper";
     public static final String WRAPPER_HEADER_VALUE = "quantum-mobile-wrapper";
