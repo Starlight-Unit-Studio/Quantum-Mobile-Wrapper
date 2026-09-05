@@ -1,5 +1,7 @@
 # Quantum Mobile Wrapper
 
+[![DOI](https://zenodo.org/badge/1358596056.svg)](https://doi.org/10.5281/zenodo.22420025)
+
 Native Android shell for Starlight web applications.
 
 ## Beta target
@@ -10,9 +12,9 @@ The first app target is:
 
 Package: `de.starlightunit.game`
 
-Version: `0.1.0-beta1`
+Version: `0.1.0-beta2`
 
-## Included in the first beta shell
+## Included in the current beta shell
 
 - Secure HTTPS-only WebView configuration
 - JavaScript and DOM storage for the existing game client
@@ -29,6 +31,9 @@ Version: `0.1.0-beta1`
 - Unit-tested domain navigation policy
 - GitHub Actions build for API 36
 - Quantum NMP native music bridge for persistent in-app soundtrack playback
+- Native handling for the complete `/assets/sounds/campaign/` media tree
+- Campaign `.ogg` files are downloaded once into app-private persistent data storage instead of WebView/cache storage
+- Persisted campaign audio survives normal app restarts and application updates
 - Starlight wrapper/app/version request markers on trusted top-level GET navigation
 
 ## Configuration
@@ -40,6 +45,8 @@ Runtime product values are centralized in:
 This keeps the shell reusable without scattering URLs and host rules through Activity code.
 
 Quantum NMP is documented in `docs/QUANTUM_NMP.md`. Its bridge is exposed to trusted game pages as `window.QuantumNMP`.
+
+Campaign OGG files managed by Quantum NMP are stored under the app-private Android files directory in `quantum_nmp/campaign`. This is persistent application data, not cache. Android removes it when the user clears app storage or uninstalls the application.
 
 The custom request headers identify the wrapper to the web application, but they are intentionally documented as client markers rather than authentication because arbitrary HTTP clients can spoof static headers.
 
