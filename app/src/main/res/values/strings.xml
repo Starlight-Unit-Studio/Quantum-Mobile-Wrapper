@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Starlight Unit</string>
+    <string name="connection_error_title">Verbindung fehlgeschlagen</string>
+    <string name="connection_error_body">Das Spiel konnte gerade nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.</string>
+    <string name="retry">Erneut versuchen</string>
+    <string name="download_started">Download gestartet</string>
+    <string name="download_failed">Download konnte nicht gestartet werden</string>
+</resources>
