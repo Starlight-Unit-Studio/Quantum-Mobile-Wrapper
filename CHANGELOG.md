@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.0-beta2
+
+Persistent native campaign audio storage.
+
+- Campaign `.ogg` files are downloaded once by Quantum NMP into the app's private persistent `files` data directory instead of relying on WebView/cache storage.
+- Stored files survive normal app restarts and app updates and are removed only when app data is cleared or the app is uninstalled.
+- Downloads are written atomically through `.part` files and verified for the `OggS` stream signature before becoming playable persistent media.
+- Persistent filenames are SHA-256-derived from the normalized source URL, preventing collisions across nested campaign paths and versioned query strings.
+- Downloads are restricted to trusted HTTPS campaign sources, redirects are not followed, and individual files are capped at 64 MiB.
+- If persistent download fails, Quantum NMP falls back to direct remote playback instead of breaking music playback.
+- Android `versionCode` increased to 2.
+
 ## 0.1.0-beta1
 
 Initial beta foundation.
