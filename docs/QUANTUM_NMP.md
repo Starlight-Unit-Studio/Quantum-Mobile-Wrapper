@@ -4,9 +4,9 @@ Quantum NMP is the native music layer of Quantum Mobile Wrapper.
 
 Its first purpose is the Starlight Unit game soundtrack: music must survive full-page WebView navigation instead of being recreated by every HTML document.
 
-## Beta6 architecture
+## Beta8 architecture
 
-Beta6 deliberately returns Quantum NMP to the stable framework `MediaPlayer` runtime that was used before the beta4 Media3 migration.
+Beta8 uses the Android framework `MediaPlayer` runtime as the current playback baseline.
 
 1. A trusted game page calls `window.QuantumNMP`.
 2. `QuantumNativeMediaPlayer` stores the requested state and resolves the media source through `QuantumCampaignMediaStore`.
@@ -14,7 +14,7 @@ Beta6 deliberately returns Quantum NMP to the stable framework `MediaPlayer` run
 4. Android framework `MediaPlayer` performs playback inside the wrapper process.
 5. Full-page WebView navigation does not recreate the native player, so soundtrack playback remains independent from HTML document lifetime.
 
-The beta4/beta5 Media3 `MediaSessionService` experiment was removed after repeated real-device force-closes during cold startup. Background/lock-screen media controls will be redesigned separately instead of remaining in the critical application startup/runtime path.
+The beta4/beta5 Media3 `MediaSessionService` experiment was removed while investigating repeated cold-start force-closes. Beta7 diagnostics later proved that the startup crash itself occurred earlier in `MainActivity` immersive-window setup and was not caused by Media3. Beta8 still keeps `MediaPlayer` so the now-confirmed startup fix and the playback-service redesign remain separate test scopes.
 
 ## JavaScript bridge
 
@@ -55,9 +55,9 @@ The initial URL and retry navigation also carry the same header set.
 
 These headers identify the native client, but they are not authentication. HTTP headers can be spoofed by a desktop client. If the game later needs a security boundary rather than a user-facing browser gate, use a server-issued app session or another cryptographically verifiable bootstrap flow.
 
-## Deliberate beta6 limits
+## Deliberate beta8 limits
 
-Beta6 prioritizes reliable startup and persistent in-app soundtrack playback across WebView navigation. It does not provide MediaSession notification controls, lock-screen controls or guaranteed playback after the Activity/process is terminated.
+Beta8 prioritizes reliable startup and persistent in-app soundtrack playback across WebView navigation. It does not currently provide MediaSession notification controls, lock-screen controls or guaranteed playback after the Activity/process is terminated.
 
 Those capabilities can be reintroduced later behind a separately tested playback service without changing the existing JavaScript bridge.
 

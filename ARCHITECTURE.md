@@ -13,11 +13,19 @@ The wrapper stays intentionally small and separates policy from Android UI plumb
 - `assets/QuantumAssetStore`: persistent app-private static asset cache with URL-versioned keys, TTLs and an LRU-style storage budget
 - `media/QuantumMediaSourcePolicy`: validates trusted HTTPS campaign media sources
 - `media/QuantumCampaignMediaStore`: downloads campaign OGG files once into the app-private persistent `files/quantum_nmp/campaign` directory, verifies the OGG signature and hands local paths to the native playback layer
-- `media/QuantumNativeMediaPlayer`: stable framework `MediaPlayer` playback, soundtrack state and persisted music settings
+- `media/QuantumNativeMediaPlayer`: framework `MediaPlayer` playback, soundtrack state and persisted music settings
 - `media/QuantumMediaMetadata`: pure-Java title helper retained for future native media surfaces
 - `MainActivity`: lifecycle and view orchestration only
 
-Beta6 intentionally removes the beta4/beta5 Media3 `MediaSessionService` and controller layer after repeated real-device cold-start force-closes. Quantum NMP remains native and independent from WebView document lifetime, but the implementation is back on the simpler framework `MediaPlayer` path that was stable before the Media3 migration.
+## Startup lifecycle
+
+Beta7 diagnostics identified the Android 16 cold-start crash in `MainActivity` window setup. The Activity previously requested immersive mode before `setContentView()`, allowing `PhoneWindow.getInsetsController()` to be reached before a usable `DecorView` existed. Beta8 keeps non-content window configuration first, inflates the Activity content, and only then posts the immersive system-bar request through the actual decor view.
+
+This keeps Android UI lifecycle concerns in `MainActivity` and prevents unrelated subsystems such as WebView, Quantum NMP or Quantum Asset Store from being blamed for failures that occur before they initialize.
+
+## Quantum NMP
+
+The beta4/beta5 Media3 playback experiment was rolled back during the crash investigation. The later diagnostic trace showed Media3 was not the source of the cold-start crash; the fault occurred earlier in immersive-window setup. Beta8 nevertheless retains the simpler framework `MediaPlayer` implementation as the current known-good playback baseline. Background notification and lock-screen playback can be reintroduced later as a separate, independently tested service change without altering the JavaScript bridge.
 
 Quantum Asset Store and Quantum NMP are deliberately separate responsibilities. Generic static Game resources below `/assets/` are warmed into `files/quantum_assets` and may be served on later WebView requests. Campaign soundtrack files below `/assets/sounds/campaign/` are excluded from that generic store and remain under the stricter OGG-aware Quantum NMP media pipeline.
 

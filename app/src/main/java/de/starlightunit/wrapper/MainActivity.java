@@ -53,6 +53,7 @@ public final class MainActivity extends Activity
         super.onCreate(savedInstanceState);
         configureWindow();
         setContentView(R.layout.activity_main);
+        enterImmersiveMode();
 
         webView = findViewById(R.id.web_view);
         progressBar = findViewById(R.id.progress);
@@ -104,20 +105,28 @@ public final class MainActivity extends Activity
         if (AppConfig.KEEP_SCREEN_ON) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
-        enterImmersiveMode();
     }
 
     private void enterImmersiveMode() {
+        Window window = getWindow();
+        View decorView = window.getDecorView();
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            WindowInsetsController controller = getWindow().getInsetsController();
-            if (controller != null) {
+            // Android 16 can throw inside PhoneWindow.getInsetsController() when it is
+            // queried before DecorView has been installed. Always obtain the controller
+            // from the actual DecorView and defer the request until the view is attached.
+            decorView.post(() -> {
+                WindowInsetsController controller = decorView.getWindowInsetsController();
+                if (controller == null) {
+                    return;
+                }
                 controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
                 controller.setSystemBarsBehavior(
                         WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 );
-            }
+            });
         } else {
-            getWindow().getDecorView().setSystemUiVisibility(
+            decorView.setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_FULLSCREEN
                             | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                             | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY

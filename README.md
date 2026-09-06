@@ -12,7 +12,9 @@ The first app target is:
 
 Package: `de.starlightunit.game`
 
-Version: `0.1.0-beta6`
+Version: `0.1.0-beta8`
+
+Beta8 fixes the Android 16 cold-start crash identified with the temporary beta7/beta8 diagnostic builds. The root cause was an immersive-mode request before the Activity `DecorView` existed. `MainActivity` now enters immersive mode only after `setContentView()` and obtains `WindowInsetsController` from the actual decor view. The fixed full wrapper was confirmed on a Samsung Galaxy S25+ running Android 16 in normal phone mode and Samsung DeX.
 
 ## Included in the current beta shell
 
@@ -24,14 +26,14 @@ Version: `0.1.0-beta6`
 - File picker support through HTML file inputs
 - DownloadManager integration with session cookies
 - HTML fullscreen support for media and game content
-- Immersive Android fullscreen mode
+- Android 16-safe immersive fullscreen handling
 - Back button integration with WebView history
 - Offline and main-frame error overlay with retry
 - Release builds with WebView debugging disabled
 - Unit-tested domain navigation policy
 - GitHub Actions build for API 36
 - Quantum NMP native music bridge for persistent soundtrack playback across WebView page navigation
-- Stable Android framework `MediaPlayer` playback runtime in beta6 after rolling back the beta4/beta5 Media3 startup regression
+- Android framework `MediaPlayer` playback runtime while service-based background playback is redesigned separately
 - Native handling for the complete `/assets/sounds/campaign/` media tree
 - Campaign `.ogg` files are downloaded once into app-private persistent data storage instead of WebView/cache storage
 - Persisted campaign audio survives normal app restarts and application updates
@@ -40,6 +42,18 @@ Version: `0.1.0-beta6`
 - URL-versioned cache keys so Game cachebuster query strings produce separate persistent entries
 - Asset Store safety limits of 64 MiB per entry and 256 MiB total
 - Starlight wrapper/app/version request markers on trusted top-level GET navigation
+
+## Android support
+
+Current beta8 baseline:
+
+- Minimum: Android 8.0 / API 26
+- Compile SDK: API 36
+- Target SDK: API 36 / Android 16
+
+Lowering the minimum to Android 6.0 / API 23 is planned as a separate compatibility change so the already device-tested beta8 startup fix stays isolated from legacy-platform work.
+
+Samsung DeX can run the wrapper, but desktop/freeform window sizing is currently best-effort; the primary UI target remains the phone layout.
 
 ## Configuration
 
