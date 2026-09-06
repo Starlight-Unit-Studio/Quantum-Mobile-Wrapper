@@ -35,8 +35,8 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Test and build debug APK
-        run: gradle test assembleDebug --stacktrace
+      - name: Lint API compatibility, test and build debug APK
+        run: gradle lintDebug test assembleDebug --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
