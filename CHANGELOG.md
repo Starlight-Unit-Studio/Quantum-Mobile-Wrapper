@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.0-beta3
+
+Quantum Asset Store for Game resources below `/assets/`.
+
+- Trusted static assets are warmed into app-private persistent `files/quantum_assets` storage after a page has loaded.
+- Later WebView requests use native cache hits through `shouldInterceptRequest()` while normal network loading remains the fallback on every miss or error.
+- Cache scope is restricted to HTTPS resources on `game.starlight-unit.de` below `/assets/` with a supported static file type.
+- API, HTML/PHP traffic, credential URLs, traversal attempts, redirects and HTML error/login responses are excluded from the store.
+- Campaign soundtrack files below `/assets/sounds/campaign/` remain owned by Quantum NMP and are not duplicated in the generic Asset Store.
+- Cache filenames are SHA-256-derived from the complete normalized asset URL including query strings, so Game cachebuster versions produce distinct native entries.
+- Versioned assets use a 30-day native TTL, unversioned assets use a 24-hour TTL.
+- Storage is capped at 64 MiB per entry and 256 MiB total with oldest-entry eviction.
+- Wrapper request markers and available WebView cookies are reused for native warm-up requests.
+- Android `versionCode` increased to 3.
+
 ## 0.1.0-beta2
 
 Persistent native campaign audio storage.
