@@ -11,10 +11,12 @@ public final class QuantumNativeMediaPlayer {
     private static final String PREF_ENABLED = "enabled";
     private static final String PREF_VOLUME = "volume";
 
+    private final Context appContext;
     private final SharedPreferences preferences;
     private final QuantumCampaignMediaStore mediaStore;
-    private final QuantumMediaSessionClient sessionClient;
 
+    private QuantumMediaSessionClient sessionClient;
+    private boolean sessionClientFailed;
     private String requestedSource;
     private boolean requestedLoop;
     private boolean shouldPlay;
@@ -22,17 +24,15 @@ public final class QuantumNativeMediaPlayer {
     private volatile float volume;
 
     public QuantumNativeMediaPlayer(Context context) {
-        Context appContext = context.getApplicationContext();
+        appContext = context.getApplicationContext();
         preferences = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         mediaStore = new QuantumCampaignMediaStore(
                 appContext,
                 AppConfig.TRUSTED_DOMAIN,
                 AppConfig.NATIVE_MEDIA_PATH_PREFIX
         );
-        sessionClient = new QuantumMediaSessionClient(appContext);
         enabled = preferences.getBoolean(PREF_ENABLED, true);
         volume = clamp(preferences.getFloat(PREF_VOLUME, 1.0f));
-        sessionClient.setVolume(volume);
     }
 
     public void play(String source, boolean loop) {
@@ -51,7 +51,9 @@ public final class QuantumNativeMediaPlayer {
 
     public void pause() {
         shouldPlay = false;
-        sessionClient.pause();
+        if (sessionClient != null) {
+            sessionClient.pause();
+        }
     }
 
     public void resume() {
@@ -67,7 +69,9 @@ public final class QuantumNativeMediaPlayer {
         requestedSource = null;
         requestedLoop = false;
         shouldPlay = false;
-        sessionClient.stop();
+        if (sessionClient != null) {
+            sessionClient.stop();
+        }
     }
 
     public void setEnabled(boolean enabled) {
@@ -90,7 +94,9 @@ public final class QuantumNativeMediaPlayer {
         float normalized = clamp((float) requestedVolume);
         volume = normalized;
         preferences.edit().putFloat(PREF_VOLUME, normalized).apply();
-        sessionClient.setVolume(normalized);
+        if (sessionClient != null) {
+            sessionClient.setVolume(normalized);
+        }
     }
 
     public double getVolume() {
@@ -101,7 +107,10 @@ public final class QuantumNativeMediaPlayer {
         requestedSource = null;
         requestedLoop = false;
         shouldPlay = false;
-        sessionClient.release();
+        if (sessionClient != null) {
+            sessionClient.release();
+            sessionClient = null;
+        }
         mediaStore.close();
     }
 
@@ -114,13 +123,37 @@ public final class QuantumNativeMediaPlayer {
                 return;
             }
 
-            sessionClient.playResolved(
+            QuantumMediaSessionClient client = getOrCreateSessionClient();
+            if (client == null) {
+                return;
+            }
+
+            client.playResolved(
                     logicalSource,
                     playbackSource,
                     requestedLoop,
                     volume
             );
         });
+    }
+
+    private QuantumMediaSessionClient getOrCreateSessionClient() {
+        if (sessionClient != null) {
+            return sessionClient;
+        }
+        if (sessionClientFailed) {
+            return null;
+        }
+
+        try {
+            QuantumMediaSessionClient candidate = new QuantumMediaSessionClient(appContext);
+            candidate.setVolume(volume);
+            sessionClient = candidate;
+            return candidate;
+        } catch (RuntimeException exception) {
+            sessionClientFailed = true;
+            return null;
+        }
     }
 
     private static float clamp(float value) {
