@@ -3,7 +3,7 @@ package de.starlightunit.wrapper.config;
 public final class AppConfig {
     public static final String START_URL = "https://game.starlight-unit.de/index_01.html";
     public static final String TRUSTED_DOMAIN = "starlight-unit.de";
-    public static final String VERSION_NAME = "0.1.0-beta8-diagnostic";
+    public static final String VERSION_NAME = "0.1.0-beta8";
     public static final String USER_AGENT_SUFFIX = " StarlightUnitAndroid/" + VERSION_NAME;
 
     public static final String NATIVE_MEDIA_BRIDGE_NAME = "QuantumNMP";
