@@ -12,9 +12,9 @@ The first app target is:
 
 Package: `de.starlightunit.game`
 
-Version: `0.1.0-beta8-diagnostic`
+Version: `0.1.0-beta8`
 
-The beta8 diagnostic build keeps the temporary diagnostic launcher so the Android 16 startup fix can be confirmed on real hardware before the normal launcher is restored. The confirmed crash came from requesting immersive system bars before the Activity `DecorView` existed; the patched `MainActivity` now enters immersive mode only after `setContentView()` and posts the request through the actual `DecorView`.
+Beta8 fixes the Android 16 cold-start crash identified with the temporary beta7/beta8 diagnostic builds. The root cause was an immersive-mode request before the Activity `DecorView` existed. `MainActivity` now enters immersive mode only after `setContentView()` and obtains `WindowInsetsController` from the actual decor view. The fixed full wrapper was confirmed on a Samsung Galaxy S25+ running Android 16 in normal phone mode and Samsung DeX.
 
 ## Included in the current beta shell
 
@@ -43,11 +43,25 @@ The beta8 diagnostic build keeps the temporary diagnostic launcher so the Androi
 - Asset Store safety limits of 64 MiB per entry and 256 MiB total
 - Starlight wrapper/app/version request markers on trusted top-level GET navigation
 
+## Android support
+
+Current beta8 baseline:
+
+- Minimum: Android 8.0 / API 26
+- Compile SDK: API 36
+- Target SDK: API 36 / Android 16
+
+Lowering the minimum to Android 6.0 / API 23 is planned as a separate compatibility change so the already device-tested beta8 startup fix stays isolated from legacy-platform work.
+
+Samsung DeX can run the wrapper, but desktop/freeform window sizing is currently best-effort; the primary UI target remains the phone layout.
+
 ## Configuration
 
 Runtime product values are centralized in:
 
 `app/src/main/java/de/starlightunit/wrapper/config/AppConfig.java`
+
+This keeps the shell reusable without scattering URLs and host rules through Activity code.
 
 Quantum NMP is documented in `docs/QUANTUM_NMP.md`. Its bridge is exposed to trusted game pages as `window.QuantumNMP`.
 
@@ -76,6 +90,8 @@ Windows:
 ```bat
 gradlew.bat test assembleDebug
 ```
+
+The wrapper JAR is bootstrapped once from the official Gradle repository and verified against the Gradle 9.6.0 wrapper SHA-256 checksum.
 
 Debug APK output:
 
