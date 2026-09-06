@@ -70,7 +70,9 @@ public final class GameWebViewClient extends WebViewClient {
 
     @Override
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-        if (!request.isForMainFrame() && "GET".equalsIgnoreCase(request.getMethod())) {
+        if (!request.isForMainFrame()
+                && "GET".equalsIgnoreCase(request.getMethod())
+                && !hasHeader(request.getRequestHeaders(), "Range")) {
             WebResourceResponse cached = assetStore.openCachedResponse(request.getUrl().toString());
             if (cached != null) {
                 return cached;
@@ -152,6 +154,18 @@ public final class GameWebViewClient extends WebViewClient {
             // Unsupported external targets are blocked instead of being loaded inside the game WebView.
         }
         return true;
+    }
+
+    private static boolean hasHeader(Map<String, String> headers, String expectedName) {
+        if (headers == null || headers.isEmpty()) {
+            return false;
+        }
+        for (String name : headers.keySet()) {
+            if (name != null && name.equalsIgnoreCase(expectedName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isAllowedExternalScheme(String url) {
