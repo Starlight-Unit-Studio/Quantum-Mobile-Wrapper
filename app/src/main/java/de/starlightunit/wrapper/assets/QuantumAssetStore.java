@@ -228,7 +228,7 @@ public final class QuantumAssetStore {
             }
             target.setLastModified(System.currentTimeMillis());
             evictToBudget();
-        } catch (IOException | ClassCastException | RuntimeException ignored) {
+        } catch (IOException | RuntimeException ignored) {
             // A failed warm-up must never break the live WebView request path.
         } finally {
             if (connection != null) {
