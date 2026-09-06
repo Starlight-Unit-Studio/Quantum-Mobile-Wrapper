@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.1.0-beta6
+
+Emergency startup-crash rollback after beta4/beta5 real-device testing.
+
+- Removed Media3/ExoPlayer runtime dependencies from the wrapper.
+- Removed the MediaSessionService and MediaController client layer.
+- Restored the beta3 Android framework `MediaPlayer` implementation for Quantum NMP.
+- Restored the pre-Media3 manifest without foreground media-service declarations.
+- Kept persistent campaign OGG storage, trusted-source validation, enabled/volume preferences and the existing `window.QuantumNMP` bridge contract unchanged.
+- Kept Quantum Asset Store unchanged.
+- Android `versionCode` increased to 6.
+
+This rollback deliberately prioritizes a reliably starting application. Background/lock-screen Media3 playback will be redesigned separately instead of remaining in the critical wrapper runtime while the startup regression is unresolved.
+
+## 0.1.0-beta5
+
+Startup crash hardening for Quantum NMP Media3 integration.
+
+- Removed eager Media3 controller binding from `MainActivity` startup by creating the session client only when native soundtrack playback is actually requested.
+- Added a fail-safe around Media3 session client creation so an initialization failure cannot take down the Game Activity.
+- Hardened `QuantumMediaPlaybackService` startup so a Media3/ExoPlayer initialization failure is logged and the service declines the session instead of crashing the application process.
+- Existing `window.QuantumNMP` bridge methods, campaign OGG persistence and trusted-source policy remain unchanged.
+- Android `versionCode` increased to 5.
+
 ## 0.1.0-beta4
 
 Media3 background playback for Quantum NMP.

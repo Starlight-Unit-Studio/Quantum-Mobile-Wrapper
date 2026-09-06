@@ -13,13 +13,11 @@ The wrapper stays intentionally small and separates policy from Android UI plumb
 - `assets/QuantumAssetStore`: persistent app-private static asset cache with URL-versioned keys, TTLs and an LRU-style storage budget
 - `media/QuantumMediaSourcePolicy`: validates trusted HTTPS campaign media sources
 - `media/QuantumCampaignMediaStore`: downloads campaign OGG files once into the app-private persistent `files/quantum_nmp/campaign` directory, verifies the OGG signature and hands local paths to the native playback layer
-- `media/QuantumNativeMediaPlayer`: bridge-facing soundtrack state and persisted music settings; it resolves media through the campaign store and delegates playback rather than owning a platform player
-- `media/QuantumMediaSessionClient`: Activity-side Media3 controller client that sends playback commands to the service and survives asynchronous session connection
-- `media/QuantumMediaPlaybackService`: foreground-capable Media3 `MediaSessionService` that owns ExoPlayer and the media session used by Android system controls
-- `media/QuantumMediaMetadata`: pure-Java notification title derivation, unit testable without Android
+- `media/QuantumNativeMediaPlayer`: stable framework `MediaPlayer` playback, soundtrack state and persisted music settings
+- `media/QuantumMediaMetadata`: pure-Java title helper retained for future native media surfaces
 - `MainActivity`: lifecycle and view orchestration only
 
-Quantum NMP no longer places the actual player inside `MainActivity`. The WebView bridge talks to `QuantumNativeMediaPlayer`, which resolves trusted campaign media and then controls the service through `QuantumMediaSessionClient`. The service owns ExoPlayer and the `MediaSession`, so page navigation, Activity backgrounding and screen-off do not destroy active playback. Media3 supplies the standard Android media notification and system/lock-screen controls from the same session.
+Beta6 intentionally removes the beta4/beta5 Media3 `MediaSessionService` and controller layer after repeated real-device cold-start force-closes. Quantum NMP remains native and independent from WebView document lifetime, but the implementation is back on the simpler framework `MediaPlayer` path that was stable before the Media3 migration.
 
 Quantum Asset Store and Quantum NMP are deliberately separate responsibilities. Generic static Game resources below `/assets/` are warmed into `files/quantum_assets` and may be served on later WebView requests. Campaign soundtrack files below `/assets/sounds/campaign/` are excluded from that generic store and remain under the stricter OGG-aware Quantum NMP media pipeline.
 
@@ -27,4 +25,4 @@ Both stores intentionally use Android's persistent app data area (`Context.getFi
 
 The generic Asset Store is an optimization, never a network proxy dependency. On a cache miss WebView performs its normal request. Only complete fresh native entries are intercepted, which avoids reproducing browser cookies, redirects, range requests, CORS and content-encoding behavior inside the wrapper.
 
-CoreUI or another STU web app can reuse the shell by changing the product configuration or by introducing a second thin application module later. Product-specific logic should not be moved into the shared web layer.
+CoreUI or another Starlight web app can reuse the shell by changing the product configuration or by introducing a second thin application module later. Product-specific logic should not be moved into the shared web layer.
