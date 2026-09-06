@@ -17,6 +17,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import de.starlightunit.wrapper.assets.QuantumAssetStore;
+import de.starlightunit.wrapper.config.AppConfig;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 
 public final class GameWebViewClient extends WebViewClient {
@@ -31,6 +33,7 @@ public final class GameWebViewClient extends WebViewClient {
     private final Callbacks callbacks;
     private final Map<String, String> requestHeaders;
     private final CampaignAudioHandoff campaignAudioHandoff;
+    private final QuantumAssetStore assetStore;
 
     public GameWebViewClient(
             Context context,
@@ -43,6 +46,12 @@ public final class GameWebViewClient extends WebViewClient {
         this.callbacks = callbacks;
         this.requestHeaders = Collections.unmodifiableMap(new LinkedHashMap<>(requestHeaders));
         this.campaignAudioHandoff = new CampaignAudioHandoff(context);
+        this.assetStore = new QuantumAssetStore(
+                context,
+                AppConfig.ASSET_STORE_TRUSTED_HOST,
+                AppConfig.ASSET_STORE_PATH_PREFIX,
+                AppConfig.ASSET_STORE_EXCLUDED_PATH_PREFIX
+        );
     }
 
     @Override
@@ -54,8 +63,22 @@ public final class GameWebViewClient extends WebViewClient {
     public void onPageFinished(WebView view, String url) {
         if (navigationPolicy.isTrustedHttps(url)) {
             campaignAudioHandoff.inject(view);
+            QuantumAssetWarmup.capture(view, assetStore, requestHeaders);
         }
         callbacks.onPageReady();
+    }
+
+    @Override
+    public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+        if (!request.isForMainFrame()
+                && "GET".equalsIgnoreCase(request.getMethod())
+                && !hasHeader(request.getRequestHeaders(), "Range")) {
+            WebResourceResponse cached = assetStore.openCachedResponse(request.getUrl().toString());
+            if (cached != null) {
+                return cached;
+            }
+        }
+        return super.shouldInterceptRequest(view, request);
     }
 
     @Override
@@ -102,6 +125,10 @@ public final class GameWebViewClient extends WebViewClient {
         }
     }
 
+    public void close() {
+        assetStore.close();
+    }
+
     private boolean handleNavigation(String url) {
         if (navigationPolicy.shouldStayInWebView(url)) {
             return false;
@@ -127,6 +154,18 @@ public final class GameWebViewClient extends WebViewClient {
             // Unsupported external targets are blocked instead of being loaded inside the game WebView.
         }
         return true;
+    }
+
+    private static boolean hasHeader(Map<String, String> headers, String expectedName) {
+        if (headers == null || headers.isEmpty()) {
+            return false;
+        }
+        for (String name : headers.keySet()) {
+            if (name != null && name.equalsIgnoreCase(expectedName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isAllowedExternalScheme(String url) {

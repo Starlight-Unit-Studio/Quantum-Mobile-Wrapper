@@ -41,6 +41,7 @@ public final class MainActivity extends Activity
     private ProgressBar progressBar;
     private View errorPanel;
     private GameWebChromeClient chromeClient;
+    private GameWebViewClient webViewClient;
     private ValueCallback<android.net.Uri[]> pendingFileCallback;
     private boolean mainFrameFailed;
     private NavigationPolicy navigationPolicy;
@@ -68,7 +69,8 @@ public final class MainActivity extends Activity
                 new QuantumNativeMediaBridge(webView, navigationPolicy, nativeMediaPlayer),
                 AppConfig.NATIVE_MEDIA_BRIDGE_NAME
         );
-        webView.setWebViewClient(new GameWebViewClient(this, navigationPolicy, this, requestHeaders));
+        webViewClient = new GameWebViewClient(this, navigationPolicy, this, requestHeaders);
+        webView.setWebViewClient(webViewClient);
         chromeClient = new GameWebChromeClient(fullscreenContainer, this, this);
         webView.setWebChromeClient(chromeClient);
         webView.setDownloadListener(new AppDownloadListener(this));
@@ -260,6 +262,10 @@ public final class MainActivity extends Activity
         if (nativeMediaPlayer != null) {
             nativeMediaPlayer.release();
             nativeMediaPlayer = null;
+        }
+        if (webViewClient != null) {
+            webViewClient.close();
+            webViewClient = null;
         }
         if (webView != null) {
             webView.stopLoading();
