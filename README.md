@@ -14,6 +14,8 @@ Package: `de.starlightunit.game`
 
 Version: `0.1.0-beta8-diagnostic`
 
+The beta8 diagnostic build keeps the temporary diagnostic launcher so the Android 16 startup fix can be confirmed on real hardware before the normal launcher is restored. The confirmed crash came from requesting immersive system bars before the Activity `DecorView` existed; the patched `MainActivity` now enters immersive mode only after `setContentView()` and posts the request through the actual `DecorView`.
+
 ## Included in the current beta shell
 
 - Secure HTTPS-only WebView configuration
@@ -24,14 +26,14 @@ Version: `0.1.0-beta8-diagnostic`
 - File picker support through HTML file inputs
 - DownloadManager integration with session cookies
 - HTML fullscreen support for media and game content
-- Immersive Android fullscreen mode with Android 16-safe deferred system-bar handling
+- Android 16-safe immersive fullscreen handling
 - Back button integration with WebView history
 - Offline and main-frame error overlay with retry
 - Release builds with WebView debugging disabled
 - Unit-tested domain navigation policy
 - GitHub Actions build for API 36
 - Quantum NMP native music bridge for persistent soundtrack playback across WebView page navigation
-- Stable Android framework `MediaPlayer` playback runtime while Media3 background playback is redesigned separately
+- Android framework `MediaPlayer` playback runtime while service-based background playback is redesigned separately
 - Native handling for the complete `/assets/sounds/campaign/` media tree
 - Campaign `.ogg` files are downloaded once into app-private persistent data storage instead of WebView/cache storage
 - Persisted campaign audio survives normal app restarts and application updates
@@ -40,15 +42,12 @@ Version: `0.1.0-beta8-diagnostic`
 - URL-versioned cache keys so Game cachebuster query strings produce separate persistent entries
 - Asset Store safety limits of 64 MiB per entry and 256 MiB total
 - Starlight wrapper/app/version request markers on trusted top-level GET navigation
-- Temporary startup diagnostic launcher used to verify the Android 16 immersive-mode crash fix on real hardware before restoring the normal launcher
 
 ## Configuration
 
 Runtime product values are centralized in:
 
 `app/src/main/java/de/starlightunit/wrapper/config/AppConfig.java`
-
-This keeps the shell reusable without scattering URLs and host rules through Activity code.
 
 Quantum NMP is documented in `docs/QUANTUM_NMP.md`. Its bridge is exposed to trusted game pages as `window.QuantumNMP`.
 
@@ -77,8 +76,6 @@ Windows:
 ```bat
 gradlew.bat test assembleDebug
 ```
-
-The wrapper JAR is bootstrapped once from the official Gradle repository and verified against the Gradle 9.6.0 wrapper SHA-256 checksum.
 
 Debug APK output:
 
