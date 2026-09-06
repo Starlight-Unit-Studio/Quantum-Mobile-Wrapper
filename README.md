@@ -12,9 +12,7 @@ The first app target is:
 
 Package: `de.starlightunit.game`
 
-Version: `0.1.0-beta7-diagnostic`
-
-> `beta7-diagnostic` is an isolation build for the unresolved real-device startup force-close. It launches into a native diagnostic screen first and does not represent the normal production launcher flow.
+Version: `0.1.0-beta8-diagnostic`
 
 ## Included in the current beta shell
 
@@ -26,14 +24,14 @@ Version: `0.1.0-beta7-diagnostic`
 - File picker support through HTML file inputs
 - DownloadManager integration with session cookies
 - HTML fullscreen support for media and game content
-- Immersive Android fullscreen mode
+- Immersive Android fullscreen mode with Android 16-safe deferred system-bar handling
 - Back button integration with WebView history
 - Offline and main-frame error overlay with retry
 - Release builds with WebView debugging disabled
 - Unit-tested domain navigation policy
 - GitHub Actions build for API 36
 - Quantum NMP native music bridge for persistent soundtrack playback across WebView page navigation
-- Stable Android framework `MediaPlayer` playback runtime after rolling back the beta4/beta5 Media3 path
+- Stable Android framework `MediaPlayer` playback runtime while Media3 background playback is redesigned separately
 - Native handling for the complete `/assets/sounds/campaign/` media tree
 - Campaign `.ogg` files are downloaded once into app-private persistent data storage instead of WebView/cache storage
 - Persisted campaign audio survives normal app restarts and application updates
@@ -42,8 +40,7 @@ Version: `0.1.0-beta7-diagnostic`
 - URL-versioned cache keys so Game cachebuster query strings produce separate persistent entries
 - Asset Store safety limits of 64 MiB per entry and 256 MiB total
 - Starlight wrapper/app/version request markers on trusted top-level GET navigation
-- Diagnostic launcher with staged WebView/wrapper initialization tests
-- Process-wide uncaught Java exception capture persisted in app-private storage for the next launch
+- Temporary startup diagnostic launcher used to verify the Android 16 immersive-mode crash fix on real hardware before restoring the normal launcher
 
 ## Configuration
 
