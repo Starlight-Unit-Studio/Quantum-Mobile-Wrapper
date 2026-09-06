@@ -47,7 +47,7 @@ public final class DiagnosticActivity extends Activity {
         ));
 
         TextView title = new TextView(this);
-        title.setText("Quantum Mobile Wrapper\nbeta7 startup diagnostics");
+        title.setText("Quantum Mobile Wrapper\nbeta8 startup diagnostics");
         title.setTextColor(Color.WHITE);
         title.setTextSize(24f);
         title.setPadding(0, 0, 0, dp(12));
@@ -62,7 +62,7 @@ public final class DiagnosticActivity extends Activity {
 
         root.addView(button("1. Test WebView creation", view -> testWebViewCreation()));
         root.addView(button("2. Test wrapper components", view -> testWrapperComponents()));
-        root.addView(button("3. Start full wrapper", view -> startFullWrapper()));
+        root.addView(button("3. Start fixed full wrapper", view -> startFullWrapper()));
         root.addView(button("Copy diagnostic text", view -> copyDiagnostics()));
         root.addView(button("Clear stored crash", view -> clearDiagnostics()));
 
@@ -96,8 +96,8 @@ public final class DiagnosticActivity extends Activity {
                     + StartupDiagnostics.read(this));
         } else {
             output.setText("No Java crash is stored. Run the tests from top to bottom.\n\n"
-                    + "If one button closes the whole app, relaunch this diagnostic screen. "
-                    + "A Java exception should then appear here. If nothing is captured, the failure may be a native/WebView process crash.");
+                    + "Beta7 identified the startup crash in Android 16 immersive window setup. "
+                    + "Button 3 now starts the patched MainActivity for real-device confirmation.");
         }
     }
 
@@ -174,7 +174,7 @@ public final class DiagnosticActivity extends Activity {
 
     private void startFullWrapper() {
         StartupDiagnostics.clear(this);
-        output.setText("Starting MainActivity now.\n\nIf the process closes, open the app again and copy the persisted crash text shown here.");
+        output.setText("Starting patched MainActivity now.\n\nIf it still closes, reopen diagnostics and copy the newly persisted crash text.");
         startActivity(new Intent(this, MainActivity.class));
     }
 
