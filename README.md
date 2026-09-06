@@ -12,7 +12,7 @@ The first app target is:
 
 Package: `de.starlightunit.game`
 
-Version: `0.1.0-beta3`
+Version: `0.1.0-beta4`
 
 ## Included in the current beta shell
 
@@ -30,7 +30,10 @@ Version: `0.1.0-beta3`
 - Release builds with WebView debugging disabled
 - Unit-tested domain navigation policy
 - GitHub Actions build for API 36
-- Quantum NMP native music bridge for persistent in-app soundtrack playback
+- Quantum NMP native music bridge for persistent soundtrack playback
+- Media3 ExoPlayer hosted in a `MediaSessionService` instead of an Activity-owned framework `MediaPlayer`
+- Background and screen-off soundtrack playback while the media session remains active
+- Android system, notification and lock-screen playback controls supplied by the Media3 session
 - Native handling for the complete `/assets/sounds/campaign/` media tree
 - Campaign `.ogg` files are downloaded once into app-private persistent data storage instead of WebView/cache storage
 - Persisted campaign audio survives normal app restarts and application updates
@@ -48,7 +51,7 @@ Runtime product values are centralized in:
 
 This keeps the shell reusable without scattering URLs and host rules through Activity code.
 
-Quantum NMP is documented in `docs/QUANTUM_NMP.md`. Its bridge is exposed to trusted game pages as `window.QuantumNMP`.
+Quantum NMP is documented in `docs/QUANTUM_NMP.md`. Its bridge remains exposed to trusted game pages as `window.QuantumNMP`; the web contract did not change when playback moved to Media3.
 
 Quantum Asset Store is documented in `docs/QUANTUM_ASSET_STORE.md`. Generic Game assets are stored under app-private `files/quantum_assets`. Campaign soundtrack files are excluded from this generic store so Quantum NMP remains the single owner of persistent campaign audio.
 

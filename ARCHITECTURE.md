@@ -12,9 +12,14 @@ The wrapper stays intentionally small and separates policy from Android UI plumb
 - `assets/QuantumAssetPolicy`: strict pure-Java policy for cacheable HTTPS `/assets/` resources
 - `assets/QuantumAssetStore`: persistent app-private static asset cache with URL-versioned keys, TTLs and an LRU-style storage budget
 - `media/QuantumMediaSourcePolicy`: validates trusted HTTPS campaign media sources
-- `media/QuantumCampaignMediaStore`: downloads campaign OGG files once into the app-private persistent `files/quantum_nmp/campaign` directory, verifies the OGG signature and hands local paths to the native player
-- `media/QuantumNativeMediaPlayer`: Android MediaPlayer lifecycle, playback state and persisted music settings
+- `media/QuantumCampaignMediaStore`: downloads campaign OGG files once into the app-private persistent `files/quantum_nmp/campaign` directory, verifies the OGG signature and hands local paths to the native playback layer
+- `media/QuantumNativeMediaPlayer`: bridge-facing soundtrack state and persisted music settings; it resolves media through the campaign store and delegates playback rather than owning a platform player
+- `media/QuantumMediaSessionClient`: Activity-side Media3 controller client that sends playback commands to the service and survives asynchronous session connection
+- `media/QuantumMediaPlaybackService`: foreground-capable Media3 `MediaSessionService` that owns ExoPlayer and the media session used by Android system controls
+- `media/QuantumMediaMetadata`: pure-Java notification title derivation, unit testable without Android
 - `MainActivity`: lifecycle and view orchestration only
+
+Quantum NMP no longer places the actual player inside `MainActivity`. The WebView bridge talks to `QuantumNativeMediaPlayer`, which resolves trusted campaign media and then controls the service through `QuantumMediaSessionClient`. The service owns ExoPlayer and the `MediaSession`, so page navigation, Activity backgrounding and screen-off do not destroy active playback. Media3 supplies the standard Android media notification and system/lock-screen controls from the same session.
 
 Quantum Asset Store and Quantum NMP are deliberately separate responsibilities. Generic static Game resources below `/assets/` are warmed into `files/quantum_assets` and may be served on later WebView requests. Campaign soundtrack files below `/assets/sounds/campaign/` are excluded from that generic store and remain under the stricter OGG-aware Quantum NMP media pipeline.
 
