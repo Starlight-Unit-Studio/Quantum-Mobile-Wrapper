@@ -2,6 +2,10 @@ package de.starlightunit.wrapper.media;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.media.AudioAttributes;
+import android.media.MediaPlayer;
+
+import java.io.IOException;
 
 import de.starlightunit.wrapper.config.AppConfig;
 
@@ -11,20 +15,19 @@ public final class QuantumNativeMediaPlayer {
     private static final String PREF_ENABLED = "enabled";
     private static final String PREF_VOLUME = "volume";
 
-    private final Context appContext;
     private final SharedPreferences preferences;
     private final QuantumCampaignMediaStore mediaStore;
 
-    private QuantumMediaSessionClient sessionClient;
-    private boolean sessionClientFailed;
+    private MediaPlayer mediaPlayer;
     private String requestedSource;
+    private String currentSource;
     private boolean requestedLoop;
-    private boolean shouldPlay;
+    private boolean prepared;
     private volatile boolean enabled;
     private volatile float volume;
 
     public QuantumNativeMediaPlayer(Context context) {
-        appContext = context.getApplicationContext();
+        Context appContext = context.getApplicationContext();
         preferences = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         mediaStore = new QuantumCampaignMediaStore(
                 appContext,
@@ -40,19 +43,33 @@ public final class QuantumNativeMediaPlayer {
             return;
         }
 
-        requestedSource = source.trim();
+        String normalizedSource = source.trim();
+        requestedSource = normalizedSource;
         requestedLoop = loop;
-        shouldPlay = enabled;
 
-        if (shouldPlay) {
-            resolveAndPlay(requestedSource);
+        if (!enabled) {
+            return;
         }
+
+        if (normalizedSource.equals(currentSource) && mediaPlayer != null) {
+            updateExistingPlayer(loop);
+            return;
+        }
+
+        resolveAndPlay(normalizedSource);
     }
 
     public void pause() {
-        shouldPlay = false;
-        if (sessionClient != null) {
-            sessionClient.pause();
+        if (mediaPlayer == null || !prepared) {
+            return;
+        }
+
+        try {
+            if (mediaPlayer.isPlaying()) {
+                mediaPlayer.pause();
+            }
+        } catch (IllegalStateException ignored) {
+            releasePlayerOnly();
         }
     }
 
@@ -61,17 +78,29 @@ public final class QuantumNativeMediaPlayer {
             return;
         }
 
-        shouldPlay = true;
-        resolveAndPlay(requestedSource);
+        if (mediaPlayer == null) {
+            resolveAndPlay(requestedSource);
+            return;
+        }
+
+        if (!prepared) {
+            return;
+        }
+
+        try {
+            if (!mediaPlayer.isPlaying()) {
+                mediaPlayer.start();
+            }
+        } catch (IllegalStateException ignored) {
+            resolveAndPlay(requestedSource);
+        }
     }
 
     public void stop() {
         requestedSource = null;
+        currentSource = null;
         requestedLoop = false;
-        shouldPlay = false;
-        if (sessionClient != null) {
-            sessionClient.stop();
-        }
+        releasePlayerOnly();
     }
 
     public void setEnabled(boolean enabled) {
@@ -94,8 +123,13 @@ public final class QuantumNativeMediaPlayer {
         float normalized = clamp((float) requestedVolume);
         volume = normalized;
         preferences.edit().putFloat(PREF_VOLUME, normalized).apply();
-        if (sessionClient != null) {
-            sessionClient.setVolume(normalized);
+
+        if (mediaPlayer != null) {
+            try {
+                mediaPlayer.setVolume(normalized, normalized);
+            } catch (IllegalStateException ignored) {
+                releasePlayerOnly();
+            }
         }
     }
 
@@ -105,54 +139,99 @@ public final class QuantumNativeMediaPlayer {
 
     public void release() {
         requestedSource = null;
-        requestedLoop = false;
-        shouldPlay = false;
-        if (sessionClient != null) {
-            sessionClient.release();
-            sessionClient = null;
-        }
+        currentSource = null;
+        releasePlayerOnly();
         mediaStore.close();
     }
 
     private void resolveAndPlay(String logicalSource) {
         mediaStore.resolve(logicalSource, playbackSource -> {
-            if (!enabled
-                    || !shouldPlay
-                    || requestedSource == null
-                    || !logicalSource.equals(requestedSource)) {
+            if (!enabled || requestedSource == null || !logicalSource.equals(requestedSource)) {
                 return;
             }
 
-            QuantumMediaSessionClient client = getOrCreateSessionClient();
-            if (client == null) {
+            if (logicalSource.equals(currentSource) && mediaPlayer != null) {
+                updateExistingPlayer(requestedLoop);
                 return;
             }
 
-            client.playResolved(
-                    logicalSource,
-                    playbackSource,
-                    requestedLoop,
-                    volume
-            );
+            prepareAndPlay(logicalSource, playbackSource, requestedLoop);
         });
     }
 
-    private QuantumMediaSessionClient getOrCreateSessionClient() {
-        if (sessionClient != null) {
-            return sessionClient;
+    private void updateExistingPlayer(boolean loop) {
+        try {
+            mediaPlayer.setLooping(loop);
+            if (prepared && !mediaPlayer.isPlaying()) {
+                mediaPlayer.start();
+            }
+        } catch (IllegalStateException ignored) {
+            releasePlayerOnly();
+            if (requestedSource != null && enabled) {
+                resolveAndPlay(requestedSource);
+            }
         }
-        if (sessionClientFailed) {
-            return null;
-        }
+    }
+
+    private void prepareAndPlay(String logicalSource, String playbackSource, boolean loop) {
+        releasePlayerOnly();
+
+        MediaPlayer candidate = new MediaPlayer();
+        mediaPlayer = candidate;
+        currentSource = logicalSource;
+        prepared = false;
 
         try {
-            QuantumMediaSessionClient candidate = new QuantumMediaSessionClient(appContext);
-            candidate.setVolume(volume);
-            sessionClient = candidate;
-            return candidate;
-        } catch (RuntimeException exception) {
-            sessionClientFailed = true;
-            return null;
+            candidate.setAudioAttributes(new AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .build());
+            candidate.setLooping(loop);
+            candidate.setVolume(volume, volume);
+            candidate.setOnPreparedListener(player -> {
+                if (mediaPlayer != player) {
+                    return;
+                }
+
+                prepared = true;
+
+                if (enabled && logicalSource.equals(requestedSource)) {
+                    try {
+                        player.setLooping(requestedLoop);
+                        player.start();
+                    } catch (IllegalStateException ignored) {
+                        releasePlayerOnly();
+                    }
+                }
+            });
+            candidate.setOnErrorListener((player, what, extra) -> {
+                if (mediaPlayer == player) {
+                    releasePlayerOnly();
+                }
+                return true;
+            });
+            candidate.setDataSource(playbackSource);
+            candidate.prepareAsync();
+        } catch (IOException | IllegalArgumentException | IllegalStateException exception) {
+            if (mediaPlayer == candidate) {
+                releasePlayerOnly();
+            }
+        }
+    }
+
+    private void releasePlayerOnly() {
+        MediaPlayer player = mediaPlayer;
+        mediaPlayer = null;
+        prepared = false;
+
+        if (player != null) {
+            try {
+                player.reset();
+            } catch (IllegalStateException ignored) {
+                // Release below is still safe.
+            }
+
+            player.release();
         }
     }
 
