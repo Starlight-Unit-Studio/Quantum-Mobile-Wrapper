@@ -12,7 +12,7 @@ The first app target is:
 
 Package: `de.starlightunit.game`
 
-Version: `0.1.0-beta4`
+Version: `0.1.0-beta5`
 
 ## Included in the current beta shell
 
@@ -32,6 +32,8 @@ Version: `0.1.0-beta4`
 - GitHub Actions build for API 36
 - Quantum NMP native music bridge for persistent soundtrack playback
 - Media3 ExoPlayer hosted in a `MediaSessionService` instead of an Activity-owned framework `MediaPlayer`
+- Lazy Media3 session initialization so ordinary app startup does not bind the media service before playback is requested
+- Media3 initialization failures are contained instead of terminating the Game Activity
 - Background and screen-off soundtrack playback while the media session remains active
 - Android system, notification and lock-screen playback controls supplied by the Media3 session
 - Native handling for the complete `/assets/sounds/campaign/` media tree
