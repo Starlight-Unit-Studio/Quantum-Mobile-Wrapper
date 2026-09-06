@@ -3,8 +3,17 @@
 
   var PREFIX = '/assets/sounds/campaign/';
   var SETTINGS_KEY = 'stu_audio_settings_v1';
+  var DEFAULT_MASTER = 0.65;
+  var DEFAULT_MUSIC_BASE_VOLUME = 0.60;
   var nmp = window.QuantumNMP;
   if (!nmp || typeof nmp.play !== 'function') return;
+
+  var nativeAudioState = {
+    master: DEFAULT_MASTER,
+    music: true,
+    sfx: true,
+    baseVolume: DEFAULT_MUSIC_BASE_VOLUME
+  };
 
   function clamp(value, fallback) {
     var number = Number(value);
@@ -18,8 +27,9 @@
         var settings = window.STU_AUDIO.getSettings();
         if (settings && typeof settings === 'object') {
           return {
-            master: clamp(settings.master, 0.65),
-            music: settings.music !== false
+            master: clamp(settings.master, DEFAULT_MASTER),
+            music: settings.music !== false,
+            sfx: settings.sfx !== false
           };
         }
       }
@@ -30,29 +40,70 @@
       if (raw) {
         var stored = JSON.parse(raw);
         return {
-          master: clamp(stored.master, 0.65),
-          music: stored.music !== false
+          master: clamp(stored.master, DEFAULT_MASTER),
+          music: stored.music !== false,
+          sfx: stored.sfx !== false
         };
       }
     } catch (e) {}
 
-    return { master: 0.65, music: true };
+    return { master: DEFAULT_MASTER, music: true, sfx: true };
   }
 
-  function syncNativeSettings(settings) {
+  function resolveBaseVolume(audio) {
+    if (!audio) return nativeAudioState.baseVolume;
+
+    try {
+      if (audio.dataset && audio.dataset.baseVolume != null) {
+        var explicit = Number(audio.dataset.baseVolume);
+        if (isFinite(explicit)) return clamp(explicit, DEFAULT_MUSIC_BASE_VOLUME);
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof audio.__stuBaseVolume === 'number' && isFinite(audio.__stuBaseVolume)) {
+        return clamp(audio.__stuBaseVolume, DEFAULT_MUSIC_BASE_VOLUME);
+      }
+    } catch (e) {}
+
+    return DEFAULT_MUSIC_BASE_VOLUME;
+  }
+
+  function syncNativeSettings(settings, baseVolume) {
     var cfg = settings && typeof settings === 'object' ? settings : readAudioSettings();
-    var master = clamp(cfg.master, 0.65);
-    var musicEnabled = cfg.music !== false;
+
+    nativeAudioState.master = clamp(cfg.master, DEFAULT_MASTER);
+    nativeAudioState.music = cfg.music !== false;
+    nativeAudioState.sfx = cfg.sfx !== false;
+
+    if (baseVolume != null) {
+      nativeAudioState.baseVolume = clamp(baseVolume, DEFAULT_MUSIC_BASE_VOLUME);
+    }
+
+    // Keep the complete game audio state visible to the wrapper layer for diagnostics
+    // and future native SFX support. Quantum NMP itself owns campaign music only.
+    window.__quantumAudioState = {
+      master: nativeAudioState.master,
+      music: nativeAudioState.music,
+      sfx: nativeAudioState.sfx,
+      baseVolume: nativeAudioState.baseVolume,
+      effectiveMusicVolume: clamp(
+        nativeAudioState.master * nativeAudioState.baseVolume,
+        DEFAULT_MASTER * DEFAULT_MUSIC_BASE_VOLUME
+      )
+    };
 
     try {
-      if (typeof nmp.setVolume === 'function') nmp.setVolume(master);
+      if (typeof nmp.setVolume === 'function') {
+        nmp.setVolume(window.__quantumAudioState.effectiveMusicVolume);
+      }
     } catch (e) {}
 
     try {
-      if (typeof nmp.setEnabled === 'function') nmp.setEnabled(musicEnabled);
+      if (typeof nmp.setEnabled === 'function') nmp.setEnabled(nativeAudioState.music);
     } catch (e) {}
 
-    return musicEnabled && master > 0;
+    return nativeAudioState.music && nativeAudioState.master > 0;
   }
 
   function resolveCampaignSource(audio) {
@@ -85,7 +136,7 @@
       audio.autoplay = false;
     } catch (e) {}
 
-    syncNativeSettings();
+    syncNativeSettings(null, resolveBaseVolume(audio));
 
     if (window.__quantumNmpCampaignSource !== source) {
       window.__quantumNmpCampaignSource = source;
@@ -122,7 +173,7 @@
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['src', 'loop', 'autoplay']
+      attributeFilter: ['src', 'loop', 'autoplay', 'data-base-volume']
     });
   }
 })();
