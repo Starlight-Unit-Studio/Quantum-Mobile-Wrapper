@@ -26,6 +26,17 @@ Run this checklist before replacing the current Web2App Pro build.
 - HTML fullscreen content enters and exits cleanly
 - Keyboard input works without permanently exposing system bars
 
+## Quantum Asset Store
+
+- First visit to a page loads `/assets/` resources normally from the live Game
+- Revisit after warm-up renders the same images, sounds, fonts and other cached static assets without visual differences
+- Versioned URLs such as `?v=1.1.2.18` do not reuse the cache entry of an older version
+- Unversioned assets refresh after the native TTL instead of remaining pinned indefinitely
+- Campaign music continues through Quantum NMP and is not duplicated by the generic Asset Store
+- API/PHP/HTML requests are never served by the Asset Store
+- A cache miss or failed warm-up never produces a blank page or blocks navigation
+- Clearing Android app data removes the native Asset Store and the next launch repopulates it normally
+
 ## Files and downloads
 
 - Standard HTML file upload opens Android's document picker
