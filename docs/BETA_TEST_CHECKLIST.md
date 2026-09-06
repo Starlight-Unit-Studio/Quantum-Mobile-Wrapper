@@ -26,6 +26,21 @@ Run this checklist before replacing the current Web2App Pro build.
 - HTML fullscreen content enters and exits cleanly
 - Keyboard input works without permanently exposing system bars
 
+## Quantum NMP / Media3
+
+- Campaign music starts through the existing `window.QuantumNMP` bridge
+- Full-page Game navigation does not restart or duplicate the currently playing track
+- Pressing Home leaves active soundtrack playback running
+- Turning the screen off leaves active soundtrack playback running
+- Returning to the Game reconnects control without starting a duplicate player
+- Android media notification shows the current campaign title and Starlight Unit Studios as artist
+- Notification and lock-screen play/pause controls affect the same Quantum NMP session
+- Headset/Bluetooth play/pause controls affect the same session where supported by the device
+- `pause()`, `resume()`, `stop()`, enable/disable and volume still match the pre-Media3 bridge behavior
+- Looping tracks continue to loop after backgrounding
+- Campaign OGG persistence still survives normal app restarts and application updates
+- Clearing Android app data removes persisted campaign media and preferences
+
 ## Quantum Asset Store
 
 - First visit to a page loads `/assets/` resources normally from the live Game

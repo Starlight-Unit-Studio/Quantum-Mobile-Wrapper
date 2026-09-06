@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.0-beta4
+
+Media3 background playback for Quantum NMP.
+
+- Replaced the Activity-owned Android framework `MediaPlayer` with Media3 ExoPlayer hosted by a dedicated `MediaSessionService`.
+- Added a `MediaController` client layer so the existing `window.QuantumNMP` bridge contract can control the service without moving playback ownership back into the Activity.
+- Active soundtrack playback can continue while the Game Activity is backgrounded or the display is off.
+- Media3 now publishes standard Android media-session state for notification, lock-screen, headset/Bluetooth and other system playback controls.
+- ExoPlayer uses media audio attributes with audio-focus handling enabled.
+- Campaign OGG persistence, trusted-source validation, enabled preference and volume preference remain owned by the existing Quantum NMP pipeline.
+- Media notification titles are derived from campaign filenames through a small pure-Java metadata helper with unit tests.
+- Added foreground-service and media-playback foreground-service manifest permissions and declared the Media3 session service.
+- Added Media3 ExoPlayer/session dependencies.
+- Android `versionCode` increased to 4.
+
 ## 0.1.0-beta3
 
 Quantum Asset Store for Game resources below `/assets/`.
