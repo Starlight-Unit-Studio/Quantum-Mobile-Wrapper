@@ -12,7 +12,7 @@ The first app target is:
 
 Package: `de.starlightunit.game`
 
-Version: `0.1.0-beta2`
+Version: `0.1.0-beta3`
 
 ## Included in the current beta shell
 
@@ -34,6 +34,10 @@ Version: `0.1.0-beta2`
 - Native handling for the complete `/assets/sounds/campaign/` media tree
 - Campaign `.ogg` files are downloaded once into app-private persistent data storage instead of WebView/cache storage
 - Persisted campaign audio survives normal app restarts and application updates
+- Quantum Asset Store for trusted static Game resources below `/assets/`
+- Native asset warm-up after page load and cache-hit interception on later navigations
+- URL-versioned cache keys so Game cachebuster query strings produce separate persistent entries
+- Asset Store safety limits of 64 MiB per entry and 256 MiB total
 - Starlight wrapper/app/version request markers on trusted top-level GET navigation
 
 ## Configuration
@@ -45,6 +49,8 @@ Runtime product values are centralized in:
 This keeps the shell reusable without scattering URLs and host rules through Activity code.
 
 Quantum NMP is documented in `docs/QUANTUM_NMP.md`. Its bridge is exposed to trusted game pages as `window.QuantumNMP`.
+
+Quantum Asset Store is documented in `docs/QUANTUM_ASSET_STORE.md`. Generic Game assets are stored under app-private `files/quantum_assets`. Campaign soundtrack files are excluded from this generic store so Quantum NMP remains the single owner of persistent campaign audio.
 
 Campaign OGG files managed by Quantum NMP are stored under the app-private Android files directory in `quantum_nmp/campaign`. This is persistent application data, not cache. Android removes it when the user clears app storage or uninstalls the application.
 
