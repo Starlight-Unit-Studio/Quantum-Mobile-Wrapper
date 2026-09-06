@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0-beta8-diagnostic
+
+Android 16 startup crash fix identified from the beta7 persisted stack trace.
+
+- Root cause confirmed in `MainActivity.enterImmersiveMode()`: immersive mode was requested before the Activity decor view existed, causing Android 16 `PhoneWindow.getInsetsController()` to throw a `NullPointerException` during `onCreate()`.
+- `configureWindow()` no longer enters immersive mode before `setContentView()`.
+- Immersive mode now obtains `WindowInsetsController` from the actual `DecorView` and posts the system-bar request until that view is ready.
+- The diagnostic launcher remains in place for real-device confirmation before restoring the normal launcher.
+- Android `versionCode` increased to 8.
+
 ## 0.1.0-beta7-diagnostic
 
 Startup-isolation build after beta6 still force-closed on real hardware in both normal Android and Samsung DeX.
@@ -92,7 +102,7 @@ Initial beta foundation.
 - Download integration through Android `DownloadManager`.
 - Trusted STU-domain navigation in-app; external links handed to Android.
 - Native/custom HTML fullscreen support.
-- Immersive fullscreen UI.
+- Immersive Android fullscreen UI.
 - Back navigation that respects WebView history.
 - Retry overlay for main-frame loading/TLS/HTTP failures.
 - WebView Safe Browsing enabled.
