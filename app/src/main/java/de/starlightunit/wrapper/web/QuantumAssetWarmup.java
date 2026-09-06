@@ -36,7 +36,7 @@ public final class QuantumAssetWarmup {
         }
 
         webView.evaluateJavascript(DISCOVERY_SCRIPT, value -> {
-            if (value == null || value.isBlank() || "null".equals(value)) {
+            if (value == null || value.trim().isEmpty() || "null".equals(value)) {
                 return;
             }
             try {
@@ -44,7 +44,7 @@ public final class QuantumAssetWarmup {
                 List<String> urls = new ArrayList<>(array.length());
                 for (int index = 0; index < array.length(); index += 1) {
                     String url = array.optString(index, "");
-                    if (!url.isBlank()) {
+                    if (!url.trim().isEmpty()) {
                         urls.add(url);
                     }
                 }
