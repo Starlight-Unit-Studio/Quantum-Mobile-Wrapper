@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0-beta5
+
+Startup crash hardening for Quantum NMP Media3 integration.
+
+- Removed eager Media3 controller binding from `MainActivity` startup by creating the session client only when native soundtrack playback is actually requested.
+- Added a fail-safe around Media3 session client creation so an initialization failure cannot take down the Game Activity.
+- Hardened `QuantumMediaPlaybackService` startup so a Media3/ExoPlayer initialization failure is logged and the service declines the session instead of crashing the application process.
+- Existing `window.QuantumNMP` bridge methods, campaign OGG persistence and trusted-source policy remain unchanged.
+- Android `versionCode` increased to 5.
+
 ## 0.1.0-beta4
 
 Media3 background playback for Quantum NMP.
