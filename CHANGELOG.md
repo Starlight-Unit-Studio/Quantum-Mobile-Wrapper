@@ -1,34 +1,37 @@
 # Changelog
 
-## 0.1.0-beta8-diagnostic
+## 0.1.0-beta8
 
-Android 16 startup crash fix identified from the beta7 persisted stack trace.
+Android 16 startup crash fix, confirmed on real hardware.
 
 - Root cause confirmed in `MainActivity.enterImmersiveMode()`: immersive mode was requested before the Activity decor view existed, causing Android 16 `PhoneWindow.getInsetsController()` to throw a `NullPointerException` during `onCreate()`.
 - `configureWindow()` no longer enters immersive mode before `setContentView()`.
 - Immersive mode now obtains `WindowInsetsController` from the actual `DecorView` and posts the system-bar request until that view is ready.
-- The diagnostic launcher remains in place for real-device confirmation before restoring the normal launcher.
-- Android `versionCode` increased to 8.
+- Restored the normal `MainActivity` launcher after successful beta8 diagnostic testing on a Samsung Galaxy S25+ running Android 16.
+- Removed the temporary diagnostic launcher, crash logger and diagnostic `Application` subclass from the product build.
+- Confirmed the fixed full wrapper starts in both normal phone mode and Samsung DeX; DeX desktop/freeform sizing remains best-effort.
+- Kept the beta6 framework `MediaPlayer` Quantum NMP runtime, persistent campaign OGG store and Quantum Asset Store unchanged while service-based background playback is redesigned separately.
+- Android `versionCode` remains 8 for the finalized beta8 build.
 
 ## 0.1.0-beta7-diagnostic
 
 Startup-isolation build after beta6 still force-closed on real hardware in both normal Android and Samsung DeX.
 
-- Added a dedicated launcher activity that does not inflate the normal wrapper WebView on startup.
+- Added a dedicated launcher activity that did not inflate the normal wrapper WebView on startup.
 - Added a process-wide uncaught Java exception logger stored in app-private files.
 - Added staged tests for raw WebView creation and wrapper component initialization.
-- Added a separate action to start the full `MainActivity` only after the diagnostic shell is already open.
+- Added a separate action to start the full `MainActivity` only after the diagnostic shell was already open.
 - Added selectable/copyable diagnostic output and persisted crash display on the next launch.
-- Kept the beta6 non-Media3 Quantum NMP runtime, persistent OGG store and Quantum Asset Store unchanged.
+- Captured the decisive Android 16 stack trace proving the crash occurred in pre-layout immersive-window setup.
 - Android `versionCode` increased to 7.
 
-This build is intentionally diagnostic and should not be merged as the normal product launcher. Its purpose is to identify whether the force-close occurs before WebView creation, during wrapper initialization, in `MainActivity`, or outside the Java exception path.
+This diagnostic build was temporary and is not the normal product launcher.
 
 ## 0.1.0-beta6
 
-Emergency startup-crash rollback after beta4/beta5 real-device testing.
+Emergency runtime rollback during startup-crash investigation.
 
-- Removed Media3/ExoPlayer runtime dependencies from the wrapper.
+- Removed Media3/ExoPlayer runtime dependencies from the wrapper while isolating the repeated cold-start force-close.
 - Removed the MediaSessionService and MediaController client layer.
 - Restored the beta3 Android framework `MediaPlayer` implementation for Quantum NMP.
 - Restored the pre-Media3 manifest without foreground media-service declarations.
@@ -36,32 +39,36 @@ Emergency startup-crash rollback after beta4/beta5 real-device testing.
 - Kept Quantum Asset Store unchanged.
 - Android `versionCode` increased to 6.
 
-This rollback deliberately prioritizes a reliably starting application. Background/lock-screen Media3 playback will be redesigned separately instead of remaining in the critical wrapper runtime while the startup regression is unresolved.
+Later beta7 diagnostics proved the startup crash itself was caused by immersive-mode timing in `MainActivity`, not by Media3 initialization. The simpler `MediaPlayer` runtime is nevertheless retained in beta8 as the known-good playback baseline until background/lock-screen playback is reintroduced behind its own test cycle.
 
 ## 0.1.0-beta5
 
-Startup crash hardening for Quantum NMP Media3 integration.
+Startup crash hardening attempted during the Media3 investigation.
 
-- Removed eager Media3 controller binding from `MainActivity` startup by creating the session client only when native soundtrack playback is actually requested.
-- Added a fail-safe around Media3 session client creation so an initialization failure cannot take down the Game Activity.
-- Hardened `QuantumMediaPlaybackService` startup so a Media3/ExoPlayer initialization failure is logged and the service declines the session instead of crashing the application process.
-- Existing `window.QuantumNMP` bridge methods, campaign OGG persistence and trusted-source policy remain unchanged.
+- Removed eager Media3 controller binding from `MainActivity` startup by creating the session client only when native soundtrack playback was actually requested.
+- Added a fail-safe around Media3 session client creation so an initialization failure could not take down the Game Activity.
+- Hardened `QuantumMediaPlaybackService` startup so a Media3/ExoPlayer initialization failure was logged and contained.
+- Existing `window.QuantumNMP` bridge methods, campaign OGG persistence and trusted-source policy remained unchanged.
 - Android `versionCode` increased to 5.
+
+The later beta7 diagnostic trace showed this did not address the real startup fault because the crash happened earlier in immersive-window initialization.
 
 ## 0.1.0-beta4
 
-Media3 background playback for Quantum NMP.
+Media3 background playback experiment for Quantum NMP.
 
 - Replaced the Activity-owned Android framework `MediaPlayer` with Media3 ExoPlayer hosted by a dedicated `MediaSessionService`.
-- Added a `MediaController` client layer so the existing `window.QuantumNMP` bridge contract can control the service without moving playback ownership back into the Activity.
-- Active soundtrack playback can continue while the Game Activity is backgrounded or the display is off.
-- Media3 now publishes standard Android media-session state for notification, lock-screen, headset/Bluetooth and other system playback controls.
-- ExoPlayer uses media audio attributes with audio-focus handling enabled.
-- Campaign OGG persistence, trusted-source validation, enabled preference and volume preference remain owned by the existing Quantum NMP pipeline.
-- Media notification titles are derived from campaign filenames through a small pure-Java metadata helper with unit tests.
+- Added a `MediaController` client layer so the existing `window.QuantumNMP` bridge contract could control the service without moving playback ownership back into the Activity.
+- Active soundtrack playback was designed to continue while the Game Activity was backgrounded or the display was off.
+- Media3 published standard Android media-session state for notification, lock-screen, headset/Bluetooth and other system playback controls.
+- ExoPlayer used media audio attributes with audio-focus handling enabled.
+- Campaign OGG persistence, trusted-source validation, enabled preference and volume preference remained owned by the existing Quantum NMP pipeline.
+- Media notification titles were derived from campaign filenames through a small pure-Java metadata helper with unit tests.
 - Added foreground-service and media-playback foreground-service manifest permissions and declared the Media3 session service.
 - Added Media3 ExoPlayer/session dependencies.
 - Android `versionCode` increased to 4.
+
+The cold-start force-close observed during this phase was later traced to `MainActivity` immersive-mode timing rather than Media3 itself. Media3 is still deferred from beta8 so its background-playback behavior can be reintroduced and device-tested independently.
 
 ## 0.1.0-beta3
 
