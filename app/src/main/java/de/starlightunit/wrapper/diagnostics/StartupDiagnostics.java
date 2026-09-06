@@ -3,9 +3,12 @@ package de.starlightunit.wrapper.diagnostics;
 import android.content.Context;
 import android.os.Build;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -51,8 +54,15 @@ public final class StartupDiagnostics {
         if (!file.isFile()) {
             return "No persisted Java crash has been captured yet.";
         }
-        try {
-            return java.nio.file.Files.readString(file.toPath(), StandardCharsets.UTF_8);
+
+        try (FileInputStream input = new FileInputStream(file);
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+            return new String(output.toByteArray(), StandardCharsets.UTF_8);
         } catch (IOException exception) {
             return "Could not read persisted crash log: " + exception;
         }
@@ -85,7 +95,8 @@ public final class StartupDiagnostics {
     private static void writeCrash(Context context, Thread thread, Throwable throwable) {
         File file = file(context);
         try (FileOutputStream output = new FileOutputStream(file, false);
-             PrintWriter writer = new PrintWriter(output, true, StandardCharsets.UTF_8)) {
+             OutputStreamWriter text = new OutputStreamWriter(output, StandardCharsets.UTF_8);
+             PrintWriter writer = new PrintWriter(text, true)) {
             writer.println("Quantum Mobile Wrapper startup diagnostics");
             writer.println("Captured: " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT).format(new Date()));
             writer.println("Thread: " + thread.getName());
