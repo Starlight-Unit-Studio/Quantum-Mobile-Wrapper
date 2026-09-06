@@ -12,7 +12,9 @@ The first app target is:
 
 Package: `de.starlightunit.game`
 
-Version: `0.1.0-beta6`
+Version: `0.1.0-beta7-diagnostic`
+
+> `beta7-diagnostic` is an isolation build for the unresolved real-device startup force-close. It launches into a native diagnostic screen first and does not represent the normal production launcher flow.
 
 ## Included in the current beta shell
 
@@ -31,7 +33,7 @@ Version: `0.1.0-beta6`
 - Unit-tested domain navigation policy
 - GitHub Actions build for API 36
 - Quantum NMP native music bridge for persistent soundtrack playback across WebView page navigation
-- Stable Android framework `MediaPlayer` playback runtime in beta6 after rolling back the beta4/beta5 Media3 startup regression
+- Stable Android framework `MediaPlayer` playback runtime after rolling back the beta4/beta5 Media3 path
 - Native handling for the complete `/assets/sounds/campaign/` media tree
 - Campaign `.ogg` files are downloaded once into app-private persistent data storage instead of WebView/cache storage
 - Persisted campaign audio survives normal app restarts and application updates
@@ -40,6 +42,8 @@ Version: `0.1.0-beta6`
 - URL-versioned cache keys so Game cachebuster query strings produce separate persistent entries
 - Asset Store safety limits of 64 MiB per entry and 256 MiB total
 - Starlight wrapper/app/version request markers on trusted top-level GET navigation
+- Diagnostic launcher with staged WebView/wrapper initialization tests
+- Process-wide uncaught Java exception capture persisted in app-private storage for the next launch
 
 ## Configuration
 
