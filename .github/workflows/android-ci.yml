@@ -48,16 +48,13 @@ jobs:
   android-6-smoke:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Download debug APK
         uses: actions/download-artifact@v4
         with:
           name: starlight-unit-android-debug
           path: apk
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
 
       - name: Enable KVM access
         run: |
@@ -66,55 +63,36 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Install Android 6 emulator image
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "emulator" "system-images;android-23;google_apis;x86_64"
-          echo no | avdmanager create avd \
-            --force \
-            --name qmw_api23 \
-            --package "system-images;android-23;google_apis;x86_64"
+      - name: Run Android 6 cold-start smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 23
+          target: default
+          arch: x86_64
+          profile: Nexus 6
+          emulator-boot-timeout: 600
+          force-avd-creation: true
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: |
+            adb install -r apk/app-debug.apk
+            adb logcat -c
+            adb shell am start -W \
+              -n de.starlightunit.game.debug/de.starlightunit.wrapper.MainActivity
+            sleep 8
 
-      - name: Boot Android 6 emulator and smoke-test wrapper startup
-        run: |
-          emulator -avd qmw_api23 \
-            -no-window \
-            -no-audio \
-            -no-boot-anim \
-            -no-snapshot \
-            -gpu swiftshader_indirect \
-            > "$RUNNER_TEMP/qmw-api23-emulator.log" 2>&1 &
+            if ! adb shell ps | grep -q 'de.starlightunit.game.debug'; then
+              echo 'Quantum Mobile Wrapper process did not survive API 23 cold start.' >&2
+              adb logcat -d -v time || true
+              exit 1
+            fi
 
-          adb wait-for-device
-          timeout 300 bash -c '
-            until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = "1" ]; do
-              sleep 5
-            done
-          '
+            if adb logcat -d -v brief | grep -A 8 -B 3 \
+              'Process: de.starlightunit.game.debug' \
+              | grep -q 'FATAL EXCEPTION'; then
+              echo 'Fatal Java exception detected during API 23 startup.' >&2
+              adb logcat -d -v time || true
+              exit 1
+            fi
 
-          adb shell input keyevent 82 || true
-          adb install -r apk/app-debug.apk
-          adb logcat -c
-
-          adb shell am start -W \
-            -n de.starlightunit.game.debug/de.starlightunit.wrapper.MainActivity \
-            | tee "$RUNNER_TEMP/qmw-api23-start.txt"
-
-          sleep 8
-
-          if ! adb shell ps | grep -q 'de.starlightunit.game.debug'; then
-            echo 'Quantum Mobile Wrapper process did not survive API 23 cold start.' >&2
-            adb logcat -d -v time || true
-            cat "$RUNNER_TEMP/qmw-api23-emulator.log" || true
-            exit 1
-          fi
-
-          if adb logcat -d -v brief | grep -A 8 -B 3 \
-            'Process: de.starlightunit.game.debug' \
-            | grep -q 'FATAL EXCEPTION'; then
-            echo 'Fatal Java exception detected during API 23 startup.' >&2
-            adb logcat -d -v time || true
-            exit 1
-          fi
-
-          echo 'Android 6 / API 23 cold-start smoke test passed.'
+            echo 'Android 6 / API 23 cold-start smoke test passed.'
