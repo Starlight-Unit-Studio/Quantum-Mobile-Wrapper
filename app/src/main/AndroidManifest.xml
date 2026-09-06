@@ -8,7 +8,6 @@
         android:maxSdkVersion="28" />
 
     <application
-        android:name="de.starlightunit.wrapper.diagnostics.QuantumDiagnosticApplication"
         android:allowBackup="false"
         android:hardwareAccelerated="true"
         android:fullBackupContent="false"
@@ -21,21 +20,15 @@
         android:usesCleartextTraffic="false">
 
         <activity
-            android:name="de.starlightunit.wrapper.diagnostics.DiagnosticActivity"
+            android:name="de.starlightunit.wrapper.MainActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:exported="true"
-            android:launchMode="singleTask"
-            android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name="de.starlightunit.wrapper.MainActivity"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
-            android:exported="false"
-            android:launchMode="singleTask" />
     </application>
 
 </manifest>
