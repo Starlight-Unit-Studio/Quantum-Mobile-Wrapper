@@ -207,7 +207,10 @@ public final class QuantumAssetStore {
                 return;
             }
 
-            long contentLength = connection.getContentLengthLong();
+            // getContentLengthLong() exists only from API 24. The store already
+            // caps entries at 64 MiB, so the legacy int accessor is sufficient
+            // on Android 6 and the streaming guard remains authoritative.
+            long contentLength = connection.getContentLength();
             if (contentLength > MAX_ENTRY_BYTES) {
                 return;
             }
@@ -270,7 +273,20 @@ public final class QuantumAssetStore {
 
         List<File> ordered = new ArrayList<>();
         Collections.addAll(ordered, files);
-        ordered.sort(Comparator.comparingLong(File::lastModified));
+        Collections.sort(ordered, new Comparator<File>() {
+            @Override
+            public int compare(File left, File right) {
+                long leftModified = left.lastModified();
+                long rightModified = right.lastModified();
+                if (leftModified < rightModified) {
+                    return -1;
+                }
+                if (leftModified > rightModified) {
+                    return 1;
+                }
+                return 0;
+            }
+        });
 
         long total = 0;
         for (File file : ordered) {

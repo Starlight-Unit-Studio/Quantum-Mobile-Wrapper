@@ -8,8 +8,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
-import android.view.WindowInsets;
-import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -108,33 +106,21 @@ public final class MainActivity extends Activity
     }
 
     private void enterImmersiveMode() {
-        Window window = getWindow();
-        View decorView = window.getDecorView();
+        View decorView = getWindow().getDecorView();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 16 can throw inside PhoneWindow.getInsetsController() when it is
-            // queried before DecorView has been installed. Always obtain the controller
-            // from the actual DecorView and defer the request until the view is attached.
-            decorView.post(() -> {
-                WindowInsetsController controller = decorView.getWindowInsetsController();
-                if (controller == null) {
-                    return;
-                }
-                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
-                controller.setSystemBarsBehavior(
-                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                );
-            });
-        } else {
-            decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            );
+        if (Build.VERSION.SDK_INT >= 30) {
+            Api30WindowHandler.enterImmersiveMode(decorView);
+            return;
         }
+
+        decorView.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        );
     }
 
     @Override
@@ -205,7 +191,11 @@ public final class MainActivity extends Activity
 
     @Override
     @SuppressWarnings("deprecation")
+    @android.annotation.SuppressLint("GestureBackNavigation")
     public void onBackPressed() {
+        // API 33+ back gestures are handled by Api33BackHandler. This override is
+        // intentionally retained only as the platform-compatible fallback for
+        // Android 6 through Android 12; lint cannot infer that version split.
         handleBackNavigation();
     }
 
@@ -244,6 +234,31 @@ public final class MainActivity extends Activity
             webView.saveState(outState);
         }
         super.onSaveInstanceState(outState);
+    }
+
+    private static final class Api30WindowHandler {
+        private Api30WindowHandler() {
+        }
+
+        @android.annotation.TargetApi(30)
+        static void enterImmersiveMode(View decorView) {
+            // Android 16 can throw inside PhoneWindow.getInsetsController() when it is
+            // queried before DecorView has been installed. Obtain the controller from
+            // the actual decor view and defer the request until that view is ready.
+            decorView.post(() -> {
+                android.view.WindowInsetsController controller = decorView.getWindowInsetsController();
+                if (controller == null) {
+                    return;
+                }
+                controller.hide(
+                        android.view.WindowInsets.Type.statusBars()
+                                | android.view.WindowInsets.Type.navigationBars()
+                );
+                controller.setSystemBarsBehavior(
+                        android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                );
+            });
+        }
     }
 
     private static final class Api33BackHandler {

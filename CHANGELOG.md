@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.0-beta9
+
+Android 6 / API 23 compatibility baseline.
+
+- Lowered `minSdk` from API 26 to API 23 while keeping `compileSdk` and `targetSdk` at API 36.
+- Added Android `lintDebug` to CI before unit tests and APK assembly so accidental newer-platform calls are caught against the API 23 minimum.
+- Replaced API 24-only `URLConnection.getContentLengthLong()` calls in Quantum Asset Store and Quantum NMP campaign persistence with the API 1-compatible integer content-length accessor; the existing 64 MiB streaming limits remain authoritative.
+- Replaced API 24-only `List.sort()` / `Comparator.comparingLong()` cache-eviction code with an API 23-safe `Collections.sort()` comparator.
+- Isolated Android 11/API 30 `WindowInsetsController` code in a version-gated helper class while retaining the beta8 Android 16 lifecycle fix.
+- Kept the legacy system-UI fullscreen path for Android 6 through Android 10 and the API 33 back-dispatcher path for current Android versions.
+- Quantum NMP bridge behavior, persistent OGG ownership, Quantum Asset Store policy, trusted headers and Game URL remain unchanged.
+- Android `versionCode` increased to 9.
+
 ## 0.1.0-beta8
 
 Android 16 startup crash fix, confirmed on real hardware.
