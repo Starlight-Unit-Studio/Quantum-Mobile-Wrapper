@@ -9,6 +9,10 @@ public final class AppConfig {
     public static final String NATIVE_MEDIA_BRIDGE_NAME = "QuantumNMP";
     public static final String NATIVE_MEDIA_PATH_PREFIX = "/assets/sounds/campaign/";
 
+    public static final String ASSET_STORE_TRUSTED_HOST = "game.starlight-unit.de";
+    public static final String ASSET_STORE_PATH_PREFIX = "/assets/";
+    public static final String ASSET_STORE_EXCLUDED_PATH_PREFIX = NATIVE_MEDIA_PATH_PREFIX;
+
     public static final String WRAPPER_HEADER_NAME = "X-Starlight-Wrapper";
     public static final String WRAPPER_HEADER_VALUE = "quantum-mobile-wrapper";
     public static final String WRAPPER_VERSION_HEADER_NAME = "X-Starlight-Wrapper-Version";
