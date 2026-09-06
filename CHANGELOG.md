@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.0-beta7-diagnostic
+
+Startup-isolation build after beta6 still force-closed on real hardware in both normal Android and Samsung DeX.
+
+- Added a dedicated launcher activity that does not inflate the normal wrapper WebView on startup.
+- Added a process-wide uncaught Java exception logger stored in app-private files.
+- Added staged tests for raw WebView creation and wrapper component initialization.
+- Added a separate action to start the full `MainActivity` only after the diagnostic shell is already open.
+- Added selectable/copyable diagnostic output and persisted crash display on the next launch.
+- Kept the beta6 non-Media3 Quantum NMP runtime, persistent OGG store and Quantum Asset Store unchanged.
+- Android `versionCode` increased to 7.
+
+This build is intentionally diagnostic and should not be merged as the normal product launcher. Its purpose is to identify whether the force-close occurs before WebView creation, during wrapper initialization, in `MainActivity`, or outside the Java exception path.
+
 ## 0.1.0-beta6
 
 Emergency startup-crash rollback after beta4/beta5 real-device testing.
