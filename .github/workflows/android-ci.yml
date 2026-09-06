@@ -50,6 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Checkout smoke script
+        uses: actions/checkout@v4
+
       - name: Download debug APK
         uses: actions/download-artifact@v4
         with:
@@ -73,26 +76,5 @@ jobs:
           emulator-boot-timeout: 600
           force-avd-creation: true
           disable-animations: true
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
-          script: |
-            adb install -r apk/app-debug.apk
-            adb logcat -c
-            adb shell am start -W \
-              -n de.starlightunit.game.debug/de.starlightunit.wrapper.MainActivity
-            sleep 8
-
-            if ! adb shell ps | grep -q 'de.starlightunit.game.debug'; then
-              echo 'Quantum Mobile Wrapper process did not survive API 23 cold start.' >&2
-              adb logcat -d -v time || true
-              exit 1
-            fi
-
-            if adb logcat -d -v brief | grep -A 8 -B 3 \
-              'Process: de.starlightunit.game.debug' \
-              | grep -q 'FATAL EXCEPTION'; then
-              echo 'Fatal Java exception detected during API 23 startup.' >&2
-              adb logcat -d -v time || true
-              exit 1
-            fi
-
-            echo 'Android 6 / API 23 cold-start smoke test passed.'
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none -no-metrics
+          script: bash .github/scripts/android-api23-smoke.sh apk/app-debug.apk
