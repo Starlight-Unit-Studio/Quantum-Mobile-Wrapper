@@ -191,7 +191,11 @@ public final class MainActivity extends Activity
 
     @Override
     @SuppressWarnings("deprecation")
+    @android.annotation.SuppressLint("GestureBackNavigation")
     public void onBackPressed() {
+        // API 33+ back gestures are handled by Api33BackHandler. This override is
+        // intentionally retained only as the platform-compatible fallback for
+        // Android 6 through Android 12; lint cannot infer that version split.
         handleBackNavigation();
     }
 
