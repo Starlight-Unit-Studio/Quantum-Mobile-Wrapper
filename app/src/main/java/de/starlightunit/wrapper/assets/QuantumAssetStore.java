@@ -17,6 +17,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -89,7 +90,9 @@ public final class QuantumAssetStore {
         try {
             BufferedInputStream input = new BufferedInputStream(new FileInputStream(target));
             Map<String, String> responseHeaders = new LinkedHashMap<>();
-            responseHeaders.put("Cache-Control", "private, max-age=31536000, immutable");
+            // Native TTL is authoritative. Prevent WebView from pinning a synthetic
+            // response longer than the store itself considers it fresh.
+            responseHeaders.put("Cache-Control", "no-store");
             responseHeaders.put("X-Quantum-Asset-Store", "HIT");
             return new WebResourceResponse(
                     spec.getMimeType(),
@@ -143,7 +146,7 @@ public final class QuantumAssetStore {
         }
 
         Map<String, String> safeHeaders = requestHeaders == null
-                ? Map.of()
+                ? Collections.emptyMap()
                 : new LinkedHashMap<>(requestHeaders);
 
         executor.execute(() -> {
@@ -188,13 +191,14 @@ public final class QuantumAssetStore {
             for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
                 String name = header.getKey();
                 String value = header.getValue();
-                if (name != null && !name.isBlank() && value != null && !value.isBlank()) {
+                if (name != null && !name.trim().isEmpty()
+                        && value != null && !value.trim().isEmpty()) {
                     connection.setRequestProperty(name, value);
                 }
             }
 
             String cookie = CookieManager.getInstance().getCookie(spec.getSource());
-            if (cookie != null && !cookie.isBlank()) {
+            if (cookie != null && !cookie.trim().isEmpty()) {
                 connection.setRequestProperty("Cookie", cookie);
             }
 
@@ -224,7 +228,7 @@ public final class QuantumAssetStore {
             }
             target.setLastModified(System.currentTimeMillis());
             evictToBudget();
-        } catch (IOException | ClassCastException ignored) {
+        } catch (IOException | ClassCastException | RuntimeException ignored) {
             // A failed warm-up must never break the live WebView request path.
         } finally {
             if (connection != null) {
@@ -264,7 +268,8 @@ public final class QuantumAssetStore {
             return;
         }
 
-        List<File> ordered = new ArrayList<>(List.of(files));
+        List<File> ordered = new ArrayList<>();
+        Collections.addAll(ordered, files);
         ordered.sort(Comparator.comparingLong(File::lastModified));
 
         long total = 0;
