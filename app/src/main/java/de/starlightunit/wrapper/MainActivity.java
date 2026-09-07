@@ -14,6 +14,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 
 import java.util.Map;
@@ -21,6 +22,7 @@ import java.util.Map;
 import de.starlightunit.wrapper.bridge.QuantumNativeMediaBridge;
 import de.starlightunit.wrapper.config.AppConfig;
 import de.starlightunit.wrapper.download.AppDownloadListener;
+import de.starlightunit.wrapper.launch.QuantumIntroController;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 import de.starlightunit.wrapper.web.GameWebChromeClient;
@@ -45,6 +47,7 @@ public final class MainActivity extends Activity
     private NavigationPolicy navigationPolicy;
     private Map<String, String> requestHeaders;
     private QuantumNativeMediaPlayer nativeMediaPlayer;
+    private QuantumIntroController introController;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,7 +60,11 @@ public final class MainActivity extends Activity
         progressBar = findViewById(R.id.progress);
         errorPanel = findViewById(R.id.error_panel);
         FrameLayout fullscreenContainer = findViewById(R.id.fullscreen_container);
+        ImageView introOverlay = findViewById(R.id.intro_overlay);
         Button retryButton = findViewById(R.id.retry_button);
+
+        introController = new QuantumIntroController(this, introOverlay);
+        introController.start(savedInstanceState != null);
 
         WebViewConfigurator.configure(this, webView);
 
@@ -276,6 +283,10 @@ public final class MainActivity extends Activity
 
     @Override
     protected void onDestroy() {
+        if (introController != null) {
+            introController.cancel();
+            introController = null;
+        }
         if (pendingFileCallback != null) {
             pendingFileCallback.onReceiveValue(null);
             pendingFileCallback = null;
