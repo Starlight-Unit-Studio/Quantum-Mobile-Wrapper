@@ -35,6 +35,14 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
+      - name: Verify mandatory Starlight production splash
+        run: |
+          set -euo pipefail
+          splash="app/src/main/res/drawable-nodpi/quantum_production_splash.webp"
+          test -f "$splash"
+          test "$(stat -c%s "$splash")" -eq 29742
+          echo "08288871248ccd7fc1ef3dd62c48f4945e90ec3e31777fe4281e941cfb8b6228  $splash" | sha256sum -c -
+
       - name: Lint API compatibility, test and build debug APK
         run: gradle lintDebug test assembleDebug --stacktrace
 
