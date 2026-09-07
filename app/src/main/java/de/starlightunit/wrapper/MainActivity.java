@@ -25,6 +25,7 @@ import de.starlightunit.wrapper.download.AppDownloadListener;
 import de.starlightunit.wrapper.launch.QuantumIntroController;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
+import de.starlightunit.wrapper.session.QuantumSessionCookieStore;
 import de.starlightunit.wrapper.web.GameWebChromeClient;
 import de.starlightunit.wrapper.web.GameWebViewClient;
 import de.starlightunit.wrapper.web.WebViewConfigurator;
@@ -48,6 +49,7 @@ public final class MainActivity extends Activity
     private Map<String, String> requestHeaders;
     private QuantumNativeMediaPlayer nativeMediaPlayer;
     private QuantumIntroController introController;
+    private QuantumSessionCookieStore sessionCookieStore;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +69,8 @@ public final class MainActivity extends Activity
         introController.start(savedInstanceState != null);
 
         WebViewConfigurator.configure(this, webView);
+        sessionCookieStore = new QuantumSessionCookieStore(this);
+        sessionCookieStore.restore();
 
         navigationPolicy = new NavigationPolicy(AppConfig.TRUSTED_DOMAIN);
         requestHeaders = WrapperRequestHeaders.create();
@@ -175,6 +179,9 @@ public final class MainActivity extends Activity
         if (!mainFrameFailed) {
             errorPanel.setVisibility(View.GONE);
         }
+        if (sessionCookieStore != null) {
+            sessionCookieStore.capture();
+        }
     }
 
     @Override
@@ -229,6 +236,9 @@ public final class MainActivity extends Activity
 
     @Override
     protected void onPause() {
+        if (sessionCookieStore != null) {
+            sessionCookieStore.capture();
+        }
         if (webView != null) {
             webView.onPause();
         }
@@ -283,6 +293,10 @@ public final class MainActivity extends Activity
 
     @Override
     protected void onDestroy() {
+        if (sessionCookieStore != null) {
+            sessionCookieStore.capture();
+            sessionCookieStore = null;
+        }
         if (introController != null) {
             introController.cancel();
             introController = null;
