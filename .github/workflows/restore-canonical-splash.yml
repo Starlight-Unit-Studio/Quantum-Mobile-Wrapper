@@ -41,9 +41,7 @@ jobs:
           git config user.name 'Starlight Unit Studios'
           git config user.email 'kontakt@starlight-unit.de'
           git add "$target"
-          if git diff --cached --quiet; then
-            echo 'Canonical splash already present.'
-            exit 0
-          fi
+          git rm -r .splash-chunks
+          git rm .github/workflows/restore-canonical-splash.yml
           git commit -m 'fix: install exact canonical production splash asset'
           git push origin HEAD:fix/canonical-production-splash-asset
