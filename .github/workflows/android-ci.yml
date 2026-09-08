@@ -38,10 +38,11 @@ jobs:
       - name: Verify mandatory Starlight production splash
         run: |
           set -euo pipefail
-          splash="app/src/main/res/drawable-nodpi/quantum_production_splash.webp"
+          splash="app/src/main/res/drawable-nodpi/quantum_production_splash.jpg"
           test -f "$splash"
-          test "$(stat -c%s "$splash")" -eq 29742
-          echo "08288871248ccd7fc1ef3dd62c48f4945e90ec3e31777fe4281e941cfb8b6228  $splash" | sha256sum -c -
+          test "$(stat -c%s "$splash")" -eq 73471
+          echo "34657a6f2c8e73a74368f58183d00615b0063c11c4cbd135c56127f82cd614df  $splash" | sha256sum -c -
+          file "$splash" | grep -q "JPEG image data"
 
       - name: Lint API compatibility, test and build debug APK
         run: gradle lintDebug test assembleDebug --stacktrace
