@@ -5,6 +5,7 @@ public final class AppConfig {
     public static final String TRUSTED_DOMAIN = "starlight-unit.de";
     public static final String VERSION_NAME = "0.1.0-beta9";
     public static final String USER_AGENT_SUFFIX = " StarlightUnitAndroid/" + VERSION_NAME;
+    public static final String CUSTOM_REQUEST_HEADERS_JSON = "{}";
 
     public static final String NATIVE_MEDIA_BRIDGE_NAME = "QuantumNMP";
     public static final String NATIVE_MEDIA_PATH_PREFIX = "/assets/sounds/campaign/";
