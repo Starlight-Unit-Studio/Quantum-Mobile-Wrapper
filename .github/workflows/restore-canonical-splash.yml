@@ -1,0 +1,49 @@
+name: Restore canonical production splash
+
+on:
+  push:
+    branches:
+      - fix/canonical-production-splash-asset
+    paths:
+      - '.splash-chunks/**'
+      - '.github/workflows/restore-canonical-splash.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct exact approved JPEG
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_parts=7
+          actual_parts="$(find .splash-chunks -maxdepth 1 -type f -name 'part-*' 2>/dev/null | wc -l | tr -d ' ')"
+          if [ "$actual_parts" != "$expected_parts" ]; then
+            echo "Waiting for all ${expected_parts} base64 parts; currently have ${actual_parts}."
+            exit 0
+          fi
+
+          target='app/src/main/res/drawable-nodpi/quantum_production_splash.jpg'
+          mkdir -p "$(dirname "$target")"
+          cat .splash-chunks/part-* | base64 --decode > "$target"
+
+          test "$(stat -c%s "$target")" -eq 73471
+          echo '34657a6f2c8e73a74368f58183d00615b0063c11c4cbd135c56127f82cd614df  app/src/main/res/drawable-nodpi/quantum_production_splash.jpg' | sha256sum -c -
+          file "$target" | grep -q 'JPEG image data'
+
+          git config user.name 'Starlight Unit Studios'
+          git config user.email 'kontakt@starlight-unit.de'
+          git add "$target"
+          if git diff --cached --quiet; then
+            echo 'Canonical splash already present.'
+            exit 0
+          fi
+          git commit -m 'fix: install exact canonical production splash asset'
+          git push origin HEAD:fix/canonical-production-splash-asset
