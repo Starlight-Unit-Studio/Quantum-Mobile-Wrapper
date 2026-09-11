@@ -1,0 +1,65 @@
+name: Dynamic image asset warmup finalizer
+
+on:
+  push:
+    branches:
+      - fix/dynamic-image-asset-warmup
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply wrapper patch
+        run: python .github/dynamic_image_warmup_patch.py
+
+      - name: Source contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          store = Path('app/src/main/java/de/starlightunit/wrapper/assets/QuantumAssetStore.java').read_text(encoding='utf-8')
+          client = Path('app/src/main/java/de/starlightunit/wrapper/web/GameWebViewClient.java').read_text(encoding='utf-8')
+          assert 'public void prefetchImageMiss(String source, Map<String, String> requestHeaders)' in store
+          assert '!spec.getMimeType().startsWith("image/")' in store
+          assert 'prefetch(spec, requestHeaders);' in store
+          assert 'assetStore.prefetchImageMiss(source, requestHeaders);' in client
+          assert 'return super.shouldInterceptRequest(view, request);' in client
+          print('dynamic image warmup source contract: OK')
+          PY
+          git diff --check
+
+      - name: Scope guard
+        run: |
+          python - <<'PY'
+          import subprocess
+          allowed = {
+              'app/src/main/java/de/starlightunit/wrapper/assets/QuantumAssetStore.java',
+              'app/src/main/java/de/starlightunit/wrapper/web/GameWebViewClient.java',
+              'CHANGELOG.md',
+              '.github/dynamic_image_warmup_patch.py',
+              '.github/workflows/dynamic-image-warmup-finalize.yml',
+          }
+          changed = set(subprocess.check_output(
+              ['git', 'diff', '--name-only', 'origin/compat/android-6-api23'], text=True
+          ).splitlines())
+          bad = sorted(changed - allowed)
+          if bad:
+              raise SystemExit('unexpected files changed: ' + ', '.join(bad))
+          PY
+
+      - name: Commit wrapper hardening
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/dynamic_image_warmup_patch.py .github/workflows/dynamic-image-warmup-finalize.yml
+          git add app/src/main/java/de/starlightunit/wrapper/assets/QuantumAssetStore.java app/src/main/java/de/starlightunit/wrapper/web/GameWebViewClient.java CHANGELOG.md
+          git diff --cached --check
+          git commit -m "Warm dynamic image misses in native asset store"
+          git push
