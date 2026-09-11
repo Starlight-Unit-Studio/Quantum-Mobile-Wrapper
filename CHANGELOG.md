@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+Dynamic image recovery through Quantum Asset Store.
+
+- Trusted image requests below `/assets/` that miss the native store are now warmed immediately in parallel while WebView keeps its ordinary live request path.
+- This covers images assigned after `onPageFinished()` (for example rotating combat/opponent portraits), which cannot be discovered by the existing page-finished resource scan.
+- Only `image/*` asset types use the miss warm-up path; CSS, JavaScript, audio, video, API and HTML traffic keep their existing behavior.
+- Existing host/path policy, cookie/request-header forwarding, file-size limits, TTLs and cache budget remain unchanged.
+- The change is additive and API-23 compatible; a failed native warm-up never blocks the WebView request.
+
 ## 0.1.0-beta9
 
 Android 6 / API 23 compatibility baseline.
