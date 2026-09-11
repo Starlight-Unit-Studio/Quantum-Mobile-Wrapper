@@ -1,0 +1,21 @@
+name: Fingerprint canonical wrapper splash
+
+on:
+  push:
+    branches:
+      - fix/dynamic-image-asset-warmup
+
+permissions:
+  contents: read
+
+jobs:
+  fingerprint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fingerprint
+        run: |
+          splash="app/src/main/res/drawable-nodpi/quantum_production_splash.jpg"
+          stat -c 'SPLASH_SIZE=%s' "$splash"
+          sha256sum "$splash"
+          file "$splash"
