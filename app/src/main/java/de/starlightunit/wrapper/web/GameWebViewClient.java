@@ -73,10 +73,17 @@ public final class GameWebViewClient extends WebViewClient {
         if (!request.isForMainFrame()
                 && "GET".equalsIgnoreCase(request.getMethod())
                 && !hasHeader(request.getRequestHeaders(), "Range")) {
-            WebResourceResponse cached = assetStore.openCachedResponse(request.getUrl().toString());
+            String source = request.getUrl().toString();
+            WebResourceResponse cached = assetStore.openCachedResponse(source);
             if (cached != null) {
                 return cached;
             }
+
+            // Dynamic images can appear long after onPageFinished(), so they
+            // are invisible to QuantumAssetWarmup.capture(). Warm a trusted
+            // image miss in parallel while WebView still performs its normal
+            // request. A later retry/navigation can then be served natively.
+            assetStore.prefetchImageMiss(source, requestHeaders);
         }
         return super.shouldInterceptRequest(view, request);
     }

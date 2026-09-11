@@ -9,6 +9,7 @@ Run this checklist before replacing the current Web2App Pro build.
 - Login session survives app restart
 - Closing and reopening the app does not create a broken duplicate session
 - App resumes correctly after being backgrounded for several minutes
+- Android 16 cold start does not regress the beta8 immersive-mode lifecycle fix
 
 ## Navigation
 
@@ -26,20 +27,17 @@ Run this checklist before replacing the current Web2App Pro build.
 - HTML fullscreen content enters and exits cleanly
 - Keyboard input works without permanently exposing system bars
 
-## Quantum NMP / Media3
+## Quantum NMP
 
 - Campaign music starts through the existing `window.QuantumNMP` bridge
 - Full-page Game navigation does not restart or duplicate the currently playing track
-- Pressing Home leaves active soundtrack playback running
-- Turning the screen off leaves active soundtrack playback running
-- Returning to the Game reconnects control without starting a duplicate player
-- Android media notification shows the current campaign title and Starlight Unit Studios as artist
-- Notification and lock-screen play/pause controls affect the same Quantum NMP session
-- Headset/Bluetooth play/pause controls affect the same session where supported by the device
-- `pause()`, `resume()`, `stop()`, enable/disable and volume still match the pre-Media3 bridge behavior
-- Looping tracks continue to loop after backgrounding
-- Campaign OGG persistence still survives normal app restarts and application updates
+- `pause()`, `resume()`, `stop()`, enable/disable and volume behave consistently
+- Looping tracks continue to loop while the wrapper process remains active
+- Campaign OGG persistence survives normal app restarts and application updates
 - Clearing Android app data removes persisted campaign media and preferences
+- A failed persistent OGG download falls back safely instead of crashing the wrapper
+
+Background notification, lock-screen and guaranteed screen-off/service-owned playback are not beta9 acceptance criteria. Those MediaSession capabilities remain deferred until the service-based NMP redesign is reintroduced as its own test scope.
 
 ## Quantum Asset Store
 
@@ -59,6 +57,7 @@ Run this checklist before replacing the current Web2App Pro build.
 - Multiple file upload works when requested by the page
 - HTTP(S) downloads begin through DownloadManager
 - Logged-in downloads receive the active cookie session
+- Android 6/API 23 falls back to app-owned external download storage when public storage permission is unavailable
 
 ## Failure behavior
 
@@ -69,12 +68,23 @@ Run this checklist before replacing the current Web2App Pro build.
 
 ## Device matrix
 
-Minimum useful smoke matrix for the public beta:
+Minimum smoke matrix for beta9:
 
-- Samsung Galaxy / current Android
-- Android 16 / API 36 emulator or device
-- Android 14 or 15 device
-- One older Android 8-10 device if the beta audience includes them
+- Android 6.0 / API 23 emulator or device: cold start, login page, navigation, file picker, one download, one campaign OGG, one Asset Store revisit
+- Android 8-10 device or emulator: legacy immersive UI path
+- Android 11-12 device or emulator: `WindowInsetsController` path
+- Android 13-15 device or emulator: modern back dispatcher + current WebView behavior
+- Samsung Galaxy / Android 16: beta8 startup regression test
+- Samsung DeX: startup only; desktop/freeform sizing remains best-effort
+
+## CI gate
+
+Before merge:
+
+- `lintDebug` passes with `minSdk 23`
+- unit tests pass
+- debug APK assembles successfully
+- no new unsupported-platform API call is suppressed merely to make lint green; version-specific APIs must be guarded or isolated
 
 ## Release identity
 

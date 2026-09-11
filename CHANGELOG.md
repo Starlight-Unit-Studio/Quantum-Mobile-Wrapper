@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+Dynamic image recovery through Quantum Asset Store.
+
+- Trusted image requests below `/assets/` that miss the native store are now warmed immediately in parallel while WebView keeps its ordinary live request path.
+- This covers images assigned after `onPageFinished()` (for example rotating combat/opponent portraits), which cannot be discovered by the existing page-finished resource scan.
+- Only `image/*` asset types use the miss warm-up path; CSS, JavaScript, audio, video, API and HTML traffic keep their existing behavior.
+- Existing host/path policy, cookie/request-header forwarding, file-size limits, TTLs and cache budget remain unchanged.
+- The change is additive and API-23 compatible; a failed native warm-up never blocks the WebView request.
+
+## 0.1.0-beta9
+
+Android 6 / API 23 compatibility baseline.
+
+- Lowered `minSdk` from API 26 to API 23 while keeping `compileSdk` and `targetSdk` at API 36.
+- Added Android `lintDebug` to CI before unit tests and APK assembly so accidental newer-platform calls are caught against the API 23 minimum.
+- Replaced API 24-only `URLConnection.getContentLengthLong()` calls in Quantum Asset Store and Quantum NMP campaign persistence with the API 1-compatible integer content-length accessor; the existing 64 MiB streaming limits remain authoritative.
+- Replaced API 24-only `List.sort()` / `Comparator.comparingLong()` cache-eviction code with an API 23-safe `Collections.sort()` comparator.
+- Isolated Android 11/API 30 `WindowInsetsController` code in a version-gated helper class while retaining the beta8 Android 16 lifecycle fix.
+- Kept the legacy system-UI fullscreen path for Android 6 through Android 10 and the API 33 back-dispatcher path for current Android versions.
+- Quantum NMP bridge behavior, persistent OGG ownership, Quantum Asset Store policy, trusted headers and Game URL remain unchanged.
+- Android `versionCode` increased to 9.
+
 ## 0.1.0-beta8
 
 Android 16 startup crash fix, confirmed on real hardware.

@@ -12,9 +12,11 @@ The first app target is:
 
 Package: `de.starlightunit.game`
 
-Version: `0.1.0-beta8`
+Version: `0.1.0-beta9`
 
-Beta8 fixes the Android 16 cold-start crash identified with the temporary beta7/beta8 diagnostic builds. The root cause was an immersive-mode request before the Activity `DecorView` existed. `MainActivity` now enters immersive mode only after `setContentView()` and obtains `WindowInsetsController` from the actual decor view. The fixed full wrapper was confirmed on a Samsung Galaxy S25+ running Android 16 in normal phone mode and Samsung DeX.
+Beta8 fixed the Android 16 cold-start crash identified with the temporary beta7/beta8 diagnostic builds. The root cause was an immersive-mode request before the Activity `DecorView` existed. `MainActivity` now enters immersive mode only after `setContentView()` and obtains modern window-insets APIs from a version-isolated compatibility path. The fixed full wrapper was confirmed on a Samsung Galaxy S25+ running Android 16 in normal phone mode and Samsung DeX.
+
+Beta9 extends the Android compatibility baseline down to Android 6.0 / API 23 without lowering the modern compile or target SDK. CI now runs Android lint before unit tests and APK assembly so accidental calls to unavailable platform APIs are caught before merge.
 
 ## Included in the current beta shell
 
@@ -26,12 +28,12 @@ Beta8 fixes the Android 16 cold-start crash identified with the temporary beta7/
 - File picker support through HTML file inputs
 - DownloadManager integration with session cookies
 - HTML fullscreen support for media and game content
-- Android 16-safe immersive fullscreen handling
+- Android 6-to-16 compatible immersive fullscreen paths
 - Back button integration with WebView history
 - Offline and main-frame error overlay with retry
 - Release builds with WebView debugging disabled
 - Unit-tested domain navigation policy
-- GitHub Actions build for API 36
+- GitHub Actions build and Android API compatibility lint against API 36 tooling
 - Quantum NMP native music bridge for persistent soundtrack playback across WebView page navigation
 - Android framework `MediaPlayer` playback runtime while service-based background playback is redesigned separately
 - Native handling for the complete `/assets/sounds/campaign/` media tree
@@ -45,13 +47,15 @@ Beta8 fixes the Android 16 cold-start crash identified with the temporary beta7/
 
 ## Android support
 
-Current beta8 baseline:
+Beta9 baseline:
 
-- Minimum: Android 8.0 / API 26
+- Minimum SDK: Android 6.0 / API 23
 - Compile SDK: API 36
 - Target SDK: API 36 / Android 16
 
-Lowering the minimum to Android 6.0 / API 23 is planned as a separate compatibility change so the already device-tested beta8 startup fix stays isolated from legacy-platform work.
+Compatibility is implemented with explicit platform-version paths rather than reducing the target SDK. Android 6 uses the legacy immersive-system-UI path; Android 11/API 30 and newer use `WindowInsetsController`; Android 13/API 33 and newer use the modern back dispatcher. WebView Safe Browsing is enabled only where the platform API exists.
+
+The persistent Asset Store and campaign OGG store avoid API 24-only URLConnection methods so their size limits continue to work on API 23. The download stream limits remain authoritative even when an old server/platform cannot provide an exact content length.
 
 Samsung DeX can run the wrapper, but desktop/freeform window sizing is currently best-effort; the primary UI target remains the phone layout.
 
@@ -82,13 +86,13 @@ Requirements:
 Linux/macOS:
 
 ```bash
-./gradlew test assembleDebug
+./gradlew lintDebug test assembleDebug
 ```
 
 Windows:
 
 ```bat
-gradlew.bat test assembleDebug
+gradlew.bat lintDebug test assembleDebug
 ```
 
 The wrapper JAR is bootstrapped once from the official Gradle repository and verified against the Gradle 9.6.0 wrapper SHA-256 checksum.

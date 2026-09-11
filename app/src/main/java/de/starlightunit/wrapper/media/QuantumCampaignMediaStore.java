@@ -127,7 +127,10 @@ public final class QuantumCampaignMediaStore {
                 return source;
             }
 
-            long contentLength = connection.getContentLengthLong();
+            // getContentLengthLong() starts at API 24. Campaign files are capped
+            // at 64 MiB, so Android 6 can safely use the legacy int accessor;
+            // the streaming byte limit below remains authoritative.
+            long contentLength = connection.getContentLength();
             if (contentLength > MAX_OGG_BYTES) {
                 return source;
             }

@@ -8,14 +8,13 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
-import android.view.WindowInsets;
-import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 
 import java.util.Map;
@@ -23,8 +22,10 @@ import java.util.Map;
 import de.starlightunit.wrapper.bridge.QuantumNativeMediaBridge;
 import de.starlightunit.wrapper.config.AppConfig;
 import de.starlightunit.wrapper.download.AppDownloadListener;
+import de.starlightunit.wrapper.launch.QuantumIntroController;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
+import de.starlightunit.wrapper.session.QuantumSessionCookieStore;
 import de.starlightunit.wrapper.web.GameWebChromeClient;
 import de.starlightunit.wrapper.web.GameWebViewClient;
 import de.starlightunit.wrapper.web.WebViewConfigurator;
@@ -47,6 +48,8 @@ public final class MainActivity extends Activity
     private NavigationPolicy navigationPolicy;
     private Map<String, String> requestHeaders;
     private QuantumNativeMediaPlayer nativeMediaPlayer;
+    private QuantumIntroController introController;
+    private QuantumSessionCookieStore sessionCookieStore;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,9 +62,15 @@ public final class MainActivity extends Activity
         progressBar = findViewById(R.id.progress);
         errorPanel = findViewById(R.id.error_panel);
         FrameLayout fullscreenContainer = findViewById(R.id.fullscreen_container);
+        ImageView introOverlay = findViewById(R.id.intro_overlay);
         Button retryButton = findViewById(R.id.retry_button);
 
+        introController = new QuantumIntroController(this, introOverlay);
+        introController.start(savedInstanceState != null);
+
         WebViewConfigurator.configure(this, webView);
+        sessionCookieStore = new QuantumSessionCookieStore(this);
+        sessionCookieStore.restore();
 
         navigationPolicy = new NavigationPolicy(AppConfig.TRUSTED_DOMAIN);
         requestHeaders = WrapperRequestHeaders.create();
@@ -108,33 +117,21 @@ public final class MainActivity extends Activity
     }
 
     private void enterImmersiveMode() {
-        Window window = getWindow();
-        View decorView = window.getDecorView();
+        View decorView = getWindow().getDecorView();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 16 can throw inside PhoneWindow.getInsetsController() when it is
-            // queried before DecorView has been installed. Always obtain the controller
-            // from the actual DecorView and defer the request until the view is attached.
-            decorView.post(() -> {
-                WindowInsetsController controller = decorView.getWindowInsetsController();
-                if (controller == null) {
-                    return;
-                }
-                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
-                controller.setSystemBarsBehavior(
-                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                );
-            });
-        } else {
-            decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            );
+        if (Build.VERSION.SDK_INT >= 30) {
+            Api30WindowHandler.enterImmersiveMode(decorView);
+            return;
         }
+
+        decorView.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        );
     }
 
     @Override
@@ -182,6 +179,9 @@ public final class MainActivity extends Activity
         if (!mainFrameFailed) {
             errorPanel.setVisibility(View.GONE);
         }
+        if (sessionCookieStore != null) {
+            sessionCookieStore.capture();
+        }
     }
 
     @Override
@@ -205,7 +205,11 @@ public final class MainActivity extends Activity
 
     @Override
     @SuppressWarnings("deprecation")
+    @android.annotation.SuppressLint("GestureBackNavigation")
     public void onBackPressed() {
+        // API 33+ back gestures are handled by Api33BackHandler. This override is
+        // intentionally retained only as the platform-compatible fallback for
+        // Android 6 through Android 12; lint cannot infer that version split.
         handleBackNavigation();
     }
 
@@ -232,6 +236,9 @@ public final class MainActivity extends Activity
 
     @Override
     protected void onPause() {
+        if (sessionCookieStore != null) {
+            sessionCookieStore.capture();
+        }
         if (webView != null) {
             webView.onPause();
         }
@@ -244,6 +251,31 @@ public final class MainActivity extends Activity
             webView.saveState(outState);
         }
         super.onSaveInstanceState(outState);
+    }
+
+    private static final class Api30WindowHandler {
+        private Api30WindowHandler() {
+        }
+
+        @android.annotation.TargetApi(30)
+        static void enterImmersiveMode(View decorView) {
+            // Android 16 can throw inside PhoneWindow.getInsetsController() when it is
+            // queried before DecorView has been installed. Obtain the controller from
+            // the actual decor view and defer the request until that view is ready.
+            decorView.post(() -> {
+                android.view.WindowInsetsController controller = decorView.getWindowInsetsController();
+                if (controller == null) {
+                    return;
+                }
+                controller.hide(
+                        android.view.WindowInsets.Type.statusBars()
+                                | android.view.WindowInsets.Type.navigationBars()
+                );
+                controller.setSystemBarsBehavior(
+                        android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                );
+            });
+        }
     }
 
     private static final class Api33BackHandler {
@@ -261,6 +293,14 @@ public final class MainActivity extends Activity
 
     @Override
     protected void onDestroy() {
+        if (sessionCookieStore != null) {
+            sessionCookieStore.capture();
+            sessionCookieStore = null;
+        }
+        if (introController != null) {
+            introController.cancel();
+            introController = null;
+        }
         if (pendingFileCallback != null) {
             pendingFileCallback.onReceiveValue(null);
             pendingFileCallback = null;
