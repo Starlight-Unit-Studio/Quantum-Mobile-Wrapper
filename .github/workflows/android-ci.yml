@@ -40,8 +40,8 @@ jobs:
           set -euo pipefail
           splash="app/src/main/res/drawable-nodpi/quantum_production_splash.jpg"
           test -f "$splash"
-          test "$(stat -c%s "$splash")" -eq 73471
-          echo "34657a6f2c8e73a74368f58183d00615b0063c11c4cbd135c56127f82cd614df  $splash" | sha256sum -c -
+          test "$(stat -c%s "$splash")" -eq 14940
+          echo "4eb1bb02c7d63d7cf1680f9ecf1a2ec6b6a9f1893533e8d7e42cb38d694a6ab0  $splash" | sha256sum -c -
           file "$splash" | grep -q "JPEG image data"
 
       - name: Lint API compatibility, test and build debug APK

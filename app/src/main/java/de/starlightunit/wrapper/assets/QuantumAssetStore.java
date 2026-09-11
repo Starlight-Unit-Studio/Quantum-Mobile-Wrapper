@@ -126,6 +126,23 @@ public final class QuantumAssetStore {
         }
     }
 
+    /**
+     * Opportunistically warms a trusted image request that missed the native
+     * cache while leaving the current WebView request untouched. This is used
+     * for images assigned dynamically after onPageFinished(), such as game
+     * combat portraits that the page-level warm-up could not discover yet.
+     */
+    public void prefetchImageMiss(String source, Map<String, String> requestHeaders) {
+        if (closed) {
+            return;
+        }
+        QuantumAssetPolicy.AssetSpec spec = policy.inspect(source);
+        if (spec == null || !spec.getMimeType().startsWith("image/")) {
+            return;
+        }
+        prefetch(spec, requestHeaders);
+    }
+
     public File getAssetDirectory() {
         return assetDirectory;
     }
