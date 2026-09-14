@@ -121,9 +121,13 @@ public final class QuantumNativeMediaPlayer {
             return;
         }
 
+        // A new playlist needs a completion listener tied to this generation.
+        // Reusing a player that happened to be on the same first track would
+        // leave the old listener generation attached and the queue would stop
+        // after that track.
         if (requestedSource.equals(currentSource) && mediaPlayer != null) {
-            updateExistingPlayer(false);
-            return;
+            releasePlayerOnly();
+            currentSource = null;
         }
 
         resolveAndPlay(requestedSource, generation);
