@@ -13,6 +13,15 @@ public final class AppConfig {
     public static final String ASSET_STORE_PATH_PREFIX = "/assets/";
     public static final String ASSET_STORE_EXCLUDED_PATH_PREFIX = NATIVE_MEDIA_PATH_PREFIX;
 
+    // Quantum Asset Downloader. The manifest lives on the same trusted host as
+    // START_URL. A missing manifest is treated as "feature not configured" and
+    // never blocks the WebView. Roots are comma separated and are matched as
+    // absolute URL path prefixes.
+    public static final boolean ASSET_DOWNLOADER_ENABLED = true;
+    public static final String ASSET_DOWNLOADER_MANIFEST_PATH = "/quantum-assets.json";
+    public static final String ASSET_DOWNLOADER_ROOTS = "/assets/portraits/";
+    public static final long ASSET_DOWNLOADER_CHECK_INTERVAL_MS = 0L;
+
     public static final String WRAPPER_HEADER_NAME = "X-Starlight-Wrapper";
     public static final String WRAPPER_HEADER_VALUE = "quantum-mobile-wrapper";
     public static final String WRAPPER_VERSION_HEADER_NAME = "X-Starlight-Wrapper-Version";
