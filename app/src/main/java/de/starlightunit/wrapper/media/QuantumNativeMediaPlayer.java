@@ -6,6 +6,9 @@ import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import de.starlightunit.wrapper.config.AppConfig;
 
@@ -26,6 +29,17 @@ public final class QuantumNativeMediaPlayer {
     private volatile boolean enabled;
     private volatile float volume;
 
+    // Playlist ownership stays native so it survives full-page WebView navigation.
+    private List<String> playlistSources = Collections.emptyList();
+    private String playlistSignature;
+    private int playlistIndex = -1;
+    private boolean playlistActive;
+    private int consecutivePlaylistFailures;
+
+    // Invalidates stale asynchronous media-store / MediaPlayer callbacks whenever
+    // the requested playback target changes.
+    private long requestGeneration;
+
     public QuantumNativeMediaPlayer(Context context) {
         Context appContext = context.getApplicationContext();
         preferences = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
@@ -43,9 +57,12 @@ public final class QuantumNativeMediaPlayer {
             return;
         }
 
+        clearPlaylistState();
+
         String normalizedSource = source.trim();
         requestedSource = normalizedSource;
         requestedLoop = loop;
+        long generation = ++requestGeneration;
 
         if (!enabled) {
             return;
@@ -56,7 +73,60 @@ public final class QuantumNativeMediaPlayer {
             return;
         }
 
-        resolveAndPlay(normalizedSource);
+        resolveAndPlay(normalizedSource, generation);
+    }
+
+    /**
+     * Starts an endlessly repeating native playlist. A repeated call with the
+     * same logical playlist is idempotent: the current track is resumed instead
+     * of restarting or reshuffling the queue. This is what lets WebView pages
+     * re-bootstrap safely while the Activity-owned soundtrack keeps playing.
+     */
+    public void playPlaylist(List<String> sources, boolean shuffle) {
+        List<String> normalizedSources = normalizePlaylist(sources);
+        if (normalizedSources.isEmpty()) {
+            return;
+        }
+
+        String signature = buildPlaylistSignature(normalizedSources, shuffle);
+        if (playlistActive && signature.equals(playlistSignature) && requestedSource != null) {
+            if (!enabled) {
+                return;
+            }
+
+            if (mediaPlayer == null) {
+                resolveAndPlay(requestedSource, ++requestGeneration);
+            } else {
+                updateExistingPlayer(false);
+            }
+            return;
+        }
+
+        List<String> playbackOrder = new ArrayList<>(normalizedSources);
+        if (shuffle && playbackOrder.size() > 1) {
+            Collections.shuffle(playbackOrder);
+        }
+
+        playlistSources = Collections.unmodifiableList(playbackOrder);
+        playlistSignature = signature;
+        playlistIndex = 0;
+        playlistActive = true;
+        consecutivePlaylistFailures = 0;
+
+        requestedSource = playlistSources.get(playlistIndex);
+        requestedLoop = false;
+        long generation = ++requestGeneration;
+
+        if (!enabled) {
+            return;
+        }
+
+        if (requestedSource.equals(currentSource) && mediaPlayer != null) {
+            updateExistingPlayer(false);
+            return;
+        }
+
+        resolveAndPlay(requestedSource, generation);
     }
 
     public void pause() {
@@ -79,7 +149,7 @@ public final class QuantumNativeMediaPlayer {
         }
 
         if (mediaPlayer == null) {
-            resolveAndPlay(requestedSource);
+            resolveAndPlay(requestedSource, ++requestGeneration);
             return;
         }
 
@@ -92,14 +162,16 @@ public final class QuantumNativeMediaPlayer {
                 mediaPlayer.start();
             }
         } catch (IllegalStateException ignored) {
-            resolveAndPlay(requestedSource);
+            resolveAndPlay(requestedSource, ++requestGeneration);
         }
     }
 
     public void stop() {
+        ++requestGeneration;
         requestedSource = null;
         currentSource = null;
         requestedLoop = false;
+        clearPlaylistState();
         releasePlayerOnly();
     }
 
@@ -138,15 +210,20 @@ public final class QuantumNativeMediaPlayer {
     }
 
     public void release() {
+        ++requestGeneration;
         requestedSource = null;
         currentSource = null;
+        clearPlaylistState();
         releasePlayerOnly();
         mediaStore.close();
     }
 
-    private void resolveAndPlay(String logicalSource) {
+    private void resolveAndPlay(String logicalSource, long generation) {
         mediaStore.resolve(logicalSource, playbackSource -> {
-            if (!enabled || requestedSource == null || !logicalSource.equals(requestedSource)) {
+            if (!enabled
+                    || generation != requestGeneration
+                    || requestedSource == null
+                    || !logicalSource.equals(requestedSource)) {
                 return;
             }
 
@@ -155,7 +232,7 @@ public final class QuantumNativeMediaPlayer {
                 return;
             }
 
-            prepareAndPlay(logicalSource, playbackSource, requestedLoop);
+            prepareAndPlay(logicalSource, playbackSource, requestedLoop, generation);
         });
     }
 
@@ -168,12 +245,17 @@ public final class QuantumNativeMediaPlayer {
         } catch (IllegalStateException ignored) {
             releasePlayerOnly();
             if (requestedSource != null && enabled) {
-                resolveAndPlay(requestedSource);
+                resolveAndPlay(requestedSource, ++requestGeneration);
             }
         }
     }
 
-    private void prepareAndPlay(String logicalSource, String playbackSource, boolean loop) {
+    private void prepareAndPlay(
+            String logicalSource,
+            String playbackSource,
+            boolean loop,
+            long generation
+    ) {
         releasePlayerOnly();
 
         MediaPlayer candidate = new MediaPlayer();
@@ -189,11 +271,15 @@ public final class QuantumNativeMediaPlayer {
             candidate.setLooping(loop);
             candidate.setVolume(volume, volume);
             candidate.setOnPreparedListener(player -> {
-                if (mediaPlayer != player) {
+                if (mediaPlayer != player || generation != requestGeneration) {
+                    if (mediaPlayer == player) {
+                        releasePlayerOnly();
+                    }
                     return;
                 }
 
                 prepared = true;
+                consecutivePlaylistFailures = 0;
 
                 if (enabled && logicalSource.equals(requestedSource)) {
                     try {
@@ -204,10 +290,18 @@ public final class QuantumNativeMediaPlayer {
                     }
                 }
             });
+            candidate.setOnCompletionListener(player -> {
+                if (mediaPlayer == player
+                        && generation == requestGeneration
+                        && playlistActive) {
+                    advancePlaylist();
+                }
+            });
             candidate.setOnErrorListener((player, what, extra) -> {
                 if (mediaPlayer == player) {
                     releasePlayerOnly();
                 }
+                handlePlaybackFailure(generation);
                 return true;
             });
             candidate.setDataSource(playbackSource);
@@ -216,7 +310,47 @@ public final class QuantumNativeMediaPlayer {
             if (mediaPlayer == candidate) {
                 releasePlayerOnly();
             }
+            handlePlaybackFailure(generation);
         }
+    }
+
+    private void advancePlaylist() {
+        if (!playlistActive || playlistSources.isEmpty()) {
+            return;
+        }
+
+        playlistIndex = (playlistIndex + 1) % playlistSources.size();
+        requestedSource = playlistSources.get(playlistIndex);
+        requestedLoop = false;
+        long generation = ++requestGeneration;
+
+        if (enabled) {
+            resolveAndPlay(requestedSource, generation);
+        }
+    }
+
+    private void handlePlaybackFailure(long failedGeneration) {
+        if (failedGeneration != requestGeneration || !playlistActive || playlistSources.isEmpty()) {
+            return;
+        }
+
+        consecutivePlaylistFailures++;
+        if (consecutivePlaylistFailures >= playlistSources.size()) {
+            requestedSource = null;
+            currentSource = null;
+            clearPlaylistState();
+            return;
+        }
+
+        advancePlaylist();
+    }
+
+    private void clearPlaylistState() {
+        playlistSources = Collections.emptyList();
+        playlistSignature = null;
+        playlistIndex = -1;
+        playlistActive = false;
+        consecutivePlaylistFailures = 0;
     }
 
     private void releasePlayerOnly() {
@@ -233,6 +367,28 @@ public final class QuantumNativeMediaPlayer {
 
             player.release();
         }
+    }
+
+    private static List<String> normalizePlaylist(List<String> sources) {
+        if (sources == null || sources.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<String> normalized = new ArrayList<>(sources.size());
+        for (String source : sources) {
+            if (source == null) {
+                continue;
+            }
+            String trimmed = source.trim();
+            if (!trimmed.isEmpty()) {
+                normalized.add(trimmed);
+            }
+        }
+        return normalized;
+    }
+
+    private static String buildPlaylistSignature(List<String> sources, boolean shuffle) {
+        return (shuffle ? "shuffle\n" : "ordered\n") + String.join("\n", sources);
     }
 
     private static float clamp(float value) {
