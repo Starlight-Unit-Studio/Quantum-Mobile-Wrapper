@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added native repeating/shuffled playlist playback to Quantum NMP through `window.QuantumNMP.playPlaylist(serializedSources, shuffle)`.
+- Playlist sequencing now remains Activity-owned and survives full-page WebView navigation without recreating an HTML `<audio>` element.
+- Repeating the same playlist request is idempotent, so page bootstrap does not restart or reshuffle an already running soundtrack.
+- Playlist entries pass through the same trusted HTTPS campaign-media validation as single-track playback.
+- Added bounded newline playlist transport parsing and unit tests while keeping the existing `play(source, loop)` bridge API backward compatible.
+
 ## 0.1.0-beta8
 
 Android 16 startup crash fix, confirmed on real hardware.
@@ -80,7 +88,7 @@ Quantum Asset Store for Game resources below `/assets/`.
 - API, HTML/PHP traffic, credential URLs, traversal attempts, redirects and HTML error/login responses are excluded from the store.
 - Campaign soundtrack files below `/assets/sounds/campaign/` remain owned by Quantum NMP and are not duplicated in the generic Asset Store.
 - Cache filenames are SHA-256-derived from the complete normalized asset URL including query strings, so Game cachebuster versions produce distinct native entries.
-- Versioned assets use a 30-day native TTL, unversioned assets use a 24-hour TTL.
+- Versioned assets use a 30-day native TTL, unversioned assets use a 24-hour native TTL.
 - Storage is capped at 64 MiB per entry and 256 MiB total with oldest-entry eviction.
 - Wrapper request markers and available WebView cookies are reused for native warm-up requests.
 - Android `versionCode` increased to 3.
