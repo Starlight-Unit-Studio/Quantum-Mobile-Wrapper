@@ -23,6 +23,28 @@ public final class WrapperRequestHeadersTest {
     }
 
     @Test
+    public void customHeadersAreMergedAndMayOverrideGeneratedMarkers() {
+        Map<String, String> headers = WrapperRequestHeaders.create(
+                "{\"X-Custom-Client\":\"mobile\",\"X-Starlight-App\":\"custom-app\"}"
+        );
+
+        assertEquals("mobile", headers.get("X-Custom-Client"));
+        assertEquals("custom-app", headers.get(AppConfig.APP_HEADER_NAME));
+        assertEquals(AppConfig.WRAPPER_HEADER_VALUE, headers.get(AppConfig.WRAPPER_HEADER_NAME));
+    }
+
+    @Test
+    public void unsafeHeaderValuesAreIgnored() {
+        Map<String, String> headers = WrapperRequestHeaders.create(
+                "{\"X-Good\":\"yes\",\"Bad Header\":\"no\",\"X-Bad\":\"a\\nb\"}"
+        );
+
+        assertEquals("yes", headers.get("X-Good"));
+        assertFalse(headers.containsKey("Bad Header"));
+        assertFalse(headers.containsKey("X-Bad"));
+    }
+
+    @Test
     public void headerDetectionIsCaseInsensitive() {
         Map<String, String> headers = new LinkedHashMap<>();
         headers.put(AppConfig.WRAPPER_HEADER_NAME.toLowerCase(), AppConfig.WRAPPER_HEADER_VALUE);
