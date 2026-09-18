@@ -203,7 +203,7 @@ public final class MainActivity extends Activity
     @Override
     public void onMainFrameError() {
         mainFrameFailed = true;
-        progressBar.setVisibility(View.GONE);
+        loadingIndicator.hide();
         errorPanel.setVisibility(View.VISIBLE);
     }
 
