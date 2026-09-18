@@ -25,8 +25,10 @@ public final class WebViewConfigurator {
         settings.setMediaPlaybackRequiresUserGesture(!AppConfig.ALLOW_AUTOPLAY_MEDIA);
         settings.setSupportMultipleWindows(false);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
-        settings.setBuiltInZoomControls(false);
+        settings.setSupportZoom(AppConfig.PINCH_TO_ZOOM_ENABLED);
+        settings.setBuiltInZoomControls(AppConfig.PINCH_TO_ZOOM_ENABLED);
         settings.setDisplayZoomControls(false);
+        settings.setTextZoom(Math.max(50, Math.min(200, AppConfig.FONT_SCALE_PERCENT)));
         settings.setLoadWithOverviewMode(false);
         settings.setUseWideViewPort(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
