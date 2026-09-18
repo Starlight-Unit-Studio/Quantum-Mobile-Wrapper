@@ -272,7 +272,8 @@ public final class MainActivity extends Activity
         if (webView != null) {
             webView.onResume();
         }
-        applyConfiguredSystemUi(false);
+        boolean customFullscreen = chromeClient != null && chromeClient.isShowingCustomView();
+        applyConfiguredSystemUi(customFullscreen);
     }
 
     @Override
