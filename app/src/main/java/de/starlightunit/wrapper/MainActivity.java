@@ -33,6 +33,7 @@ import de.starlightunit.wrapper.download.AppDownloadListener;
 import de.starlightunit.wrapper.download.DownloadDestinationPolicy;
 import de.starlightunit.wrapper.launch.AttributionBannerController;
 import de.starlightunit.wrapper.launch.QuantumIntroController;
+import de.starlightunit.wrapper.launch.SplashAttributionPolicy;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
 import de.starlightunit.wrapper.navigation.DeepLinkResolver;
 import de.starlightunit.wrapper.navigation.ExternalLinkLauncher;
@@ -283,14 +284,10 @@ public final class MainActivity extends Activity
     }
 
     private int attributionBottomInsetDp() {
-        int inset = 16;
-        if (AppConfig.BOTTOM_TABS_ENABLED) {
-            inset += 58;
-        }
-        if (AppConfig.CONTEXTUAL_TOOLBAR_ENABLED) {
-            inset += 46;
-        }
-        return inset;
+        return SplashAttributionPolicy.footerInsetDp(
+                AppConfig.BOTTOM_TABS_ENABLED,
+                AppConfig.CONTEXTUAL_TOOLBAR_ENABLED
+        );
     }
 
     private void configureWindow() {
