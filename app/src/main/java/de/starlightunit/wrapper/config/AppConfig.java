@@ -40,6 +40,10 @@ public final class AppConfig {
     public static final String NATIVE_NAVIGATION_FOREGROUND_COLOR = "#ffffff";
     public static final String NATIVE_NAVIGATION_ACCENT_COLOR = "#6fc7ff";
 
+    public static final String NEW_WINDOW_POLICY = "blocked";
+    public static final String DEEP_LINK_SCHEME = "";
+    public static final String LINK_RULES_JSON = "[]";
+
     public static final String LOADING_INDICATOR_STYLE = "top-bar";
     public static final String LOADING_INDICATOR_COLOR = "#6fc7ff";
     public static final int LOADING_BAR_THICKNESS_DP = 3;
