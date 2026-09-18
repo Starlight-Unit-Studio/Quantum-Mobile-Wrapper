@@ -16,6 +16,17 @@ public final class WebOverridesTest {
     }
 
     @Test
+    public void themeInjectionExposesResolvedThemeContract() {
+        String dark = WebOverrides.themeInjectionScript("dark");
+        assertTrue(dark.contains("mode='dark'"));
+        assertTrue(dark.contains("root.dataset.quantumTheme=resolved"));
+        assertTrue(dark.contains("root.style.colorScheme=resolved"));
+
+        String auto = WebOverrides.themeInjectionScript("auto");
+        assertTrue(auto.contains("prefers-color-scheme: dark"));
+    }
+
+    @Test
     public void javascriptInjectionPreservesSourceAndAddsDebugSourceName() {
         String source = "window.quantumTest = (window.quantumTest || 0) + 1;";
         String script = WebOverrides.javascriptInjectionScript(source);
