@@ -42,6 +42,7 @@ public final class AppConfig {
     public static final int FONT_SCALE_PERCENT = 100;
     public static final boolean ALLOW_AUTOPLAY_MEDIA = true;
     public static final boolean ALLOW_THIRD_PARTY_COOKIES = true;
+    public static final boolean PUBLIC_DOWNLOADS_ENABLED = true;
 
     private AppConfig() {
     }

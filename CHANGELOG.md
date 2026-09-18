@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+Profile-controlled public downloads.
+
+- Adds a compiled Public Downloads runtime flag used by Android DownloadManager.
+- Android 10+ writes enabled downloads to the shared user-visible Downloads directory.
+- Android 6 through 9 request WRITE_EXTERNAL_STORAGE only when public downloads are enabled.
+- Legacy devices fall back to app-specific external storage if storage permission is unavailable.
+- Disabling Public Downloads intentionally keeps downloaded files inside app-specific external storage.
+- Keeps authenticated download cookies, wrapper request headers and Android 6/API 23 compatibility.
+
 Configurable native interface controls.
 
 - Adds profile-controlled pull-to-refresh using Android SwipeRefreshLayout.
