@@ -2,13 +2,14 @@
 
 ## Unreleased
 
-Runtime Web Overrides parity.
+Configurable native interface controls.
 
-- Applies configured Custom CSS to trusted app pages without modifying external pages.
-- Executes configured Custom JavaScript on trusted pages after navigation completes.
-- Adds cookie persistence modes for encrypted persistent sessions, website/server defaults and session-only starts.
-- Preserves legacy Quantum behavior by treating older `default` cookie settings as persistent.
-- Keeps Android 6 / API 23 compatibility and the existing trusted-origin boundary.
+- Adds profile-controlled pull-to-refresh using Android SwipeRefreshLayout.
+- Adds profile-controlled pinch-to-zoom without showing legacy zoom buttons.
+- Applies Android WebView font scaling from 50% through 200%.
+- Makes immersive fullscreen a real profile-controlled runtime option while keeping HTML5 media fullscreen independent.
+- Pull-to-refresh reloads through Quantum's trusted navigation path so compiled request headers remain available.
+- Keeps Android 6 / API 23 compatibility and preserves the wrapper's existing fullscreen default until a generated profile overrides it.
 
 Runtime Web Overrides parity.
 

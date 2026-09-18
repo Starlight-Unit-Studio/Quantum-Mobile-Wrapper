@@ -36,6 +36,10 @@ public final class AppConfig {
     public static final int LOADING_OVERLAY_DIM_PERCENT = 35;
 
     public static final boolean KEEP_SCREEN_ON = true;
+    public static final boolean IMMERSIVE_FULLSCREEN_ENABLED = true;
+    public static final boolean PULL_TO_REFRESH_ENABLED = false;
+    public static final boolean PINCH_TO_ZOOM_ENABLED = false;
+    public static final int FONT_SCALE_PERCENT = 100;
     public static final boolean ALLOW_AUTOPLAY_MEDIA = true;
     public static final boolean ALLOW_THIRD_PARTY_COOKIES = true;
 
