@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+Custom splash replacement and post-load STU attribution.
+
+- Generated apps may replace the visible STU production splash with one profile-provided custom splash; both splash images are never shown in sequence.
+- The production splash stays packaged as a safe fallback when no valid custom resource exists.
+- Custom-splash builds show the canonical STU attribution banner once after both intro completion and the first successful main-page load.
+- Attribution display duration is bounded to 2 through 4 seconds and defaults to 3 seconds.
+- The floating banner automatically clears enabled Bottom Tabs and Contextual Toolbar surfaces.
+- Factory-splash builds and failed first-page loads never show the footer attribution banner.
+- Splash and attribution lifecycles are controlled by separate components with a small tested coordination policy.
+- Keeps Android 6 / API 23 compatibility and the existing Android 16 startup safeguards.
+
 Native link handling runtime.
 
 - Adds first-match-wins link rules for scheme, host and path-prefix matching.

@@ -50,6 +50,10 @@ public final class AppConfig {
     public static final int LOADING_SPINNER_SIZE_DP = 56;
     public static final int LOADING_OVERLAY_DIM_PERCENT = 35;
 
+    public static final boolean CUSTOM_SPLASH_ENABLED = false;
+    public static final boolean ATTRIBUTION_BANNER_ENABLED = false;
+    public static final int ATTRIBUTION_BANNER_DURATION_MS = 3000;
+
     public static final boolean KEEP_SCREEN_ON = true;
     public static final boolean PAGE_TRANSITIONS_ENABLED = false;
     public static final boolean TOP_NAVIGATION_ENABLED = false;

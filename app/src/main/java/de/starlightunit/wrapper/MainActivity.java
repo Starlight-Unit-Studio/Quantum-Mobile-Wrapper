@@ -31,7 +31,9 @@ import de.starlightunit.wrapper.bridge.QuantumNativeMediaBridge;
 import de.starlightunit.wrapper.config.AppConfig;
 import de.starlightunit.wrapper.download.AppDownloadListener;
 import de.starlightunit.wrapper.download.DownloadDestinationPolicy;
+import de.starlightunit.wrapper.launch.AttributionBannerController;
 import de.starlightunit.wrapper.launch.QuantumIntroController;
+import de.starlightunit.wrapper.launch.SplashAttributionPolicy;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
 import de.starlightunit.wrapper.navigation.DeepLinkResolver;
 import de.starlightunit.wrapper.navigation.ExternalLinkLauncher;
@@ -74,6 +76,7 @@ public final class MainActivity extends Activity
     private Map<String, String> requestHeaders;
     private QuantumNativeMediaPlayer nativeMediaPlayer;
     private QuantumIntroController introController;
+    private AttributionBannerController attributionBanner;
     private QuantumSessionCookieStore sessionCookieStore;
 
     @Override
@@ -115,9 +118,22 @@ public final class MainActivity extends Activity
         introOverlay.setBackgroundColor(
                 SystemBarStyle.parseRgb(AppConfig.SPLASH_BACKGROUND_COLOR, Color.BLACK)
         );
+        ImageView attributionView = findViewById(R.id.attribution_banner);
+        attributionBanner = new AttributionBannerController(
+                this,
+                attributionView,
+                AppConfig.ATTRIBUTION_BANNER_ENABLED,
+                AppConfig.ATTRIBUTION_BANNER_DURATION_MS,
+                attributionBottomInsetDp()
+        );
         Button retryButton = findViewById(R.id.retry_button);
 
-        introController = new QuantumIntroController(this, introOverlay);
+        introController = new QuantumIntroController(
+                this,
+                introOverlay,
+                AppConfig.CUSTOM_SPLASH_ENABLED,
+                customSplashUsed -> attributionBanner.onIntroFinished(customSplashUsed)
+        );
         introController.start(savedInstanceState != null);
 
         WebViewConfigurator.configure(this, webView);
@@ -267,6 +283,13 @@ public final class MainActivity extends Activity
         }
     }
 
+    private int attributionBottomInsetDp() {
+        return SplashAttributionPolicy.footerInsetDp(
+                AppConfig.BOTTOM_TABS_ENABLED,
+                AppConfig.CONTEXTUAL_TOOLBAR_ENABLED
+        );
+    }
+
     private void configureWindow() {
         Window window = getWindow();
         window.setStatusBarColor(
@@ -389,6 +412,9 @@ public final class MainActivity extends Activity
         refreshLayout.setRefreshing(false);
         if (!mainFrameFailed) {
             errorPanel.setVisibility(View.GONE);
+            if (attributionBanner != null) {
+                attributionBanner.onFirstPageReady();
+            }
         }
         if (sessionCookieStore != null) {
             sessionCookieStore.capture();
@@ -539,6 +565,10 @@ public final class MainActivity extends Activity
         if (introController != null) {
             introController.cancel();
             introController = null;
+        }
+        if (attributionBanner != null) {
+            attributionBanner.cancel();
+            attributionBanner = null;
         }
         if (pendingFileCallback != null) {
             pendingFileCallback.onReceiveValue(null);
