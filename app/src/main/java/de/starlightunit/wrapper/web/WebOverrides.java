@@ -17,6 +17,8 @@ public final class WebOverrides {
     }
 
     public static void apply(WebView webView) {
+        webView.evaluateJavascript(themeInjectionScript(AppConfig.WEB_DARK_MODE), null);
+
         String css = AppConfig.CUSTOM_CSS;
         if (css != null && !css.trim().isEmpty()) {
             webView.evaluateJavascript(cssInjectionScript(css), null);
@@ -36,6 +38,20 @@ public final class WebOverrides {
                 + "if(!s){s=d.createElement('style');s.id='" + STYLE_ELEMENT_ID + "';"
                 + "(d.head||d.documentElement).appendChild(s);}"
                 + "s.textContent=" + quotedCss + ";"
+                + "})();";
+    }
+
+    static String themeInjectionScript(String mode) {
+        String normalized = WebThemeController.normalize(mode);
+        return "(function(){"
+                + "var root=document.documentElement;"
+                + "var mode='" + normalized + "';"
+                + "var resolved=mode;"
+                + "if(mode==='auto'){"
+                + "resolved=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';"
+                + "}"
+                + "root.dataset.quantumTheme=resolved;"
+                + "root.style.colorScheme=resolved;"
                 + "})();";
     }
 
