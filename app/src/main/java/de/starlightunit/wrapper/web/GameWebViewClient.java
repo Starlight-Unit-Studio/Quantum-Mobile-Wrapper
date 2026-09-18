@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import de.starlightunit.wrapper.assets.QuantumAssetStore;
+import de.starlightunit.wrapper.assets.QuantumStartupAssetDownloader;
 import de.starlightunit.wrapper.config.AppConfig;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 
@@ -34,6 +35,7 @@ public final class GameWebViewClient extends WebViewClient {
     private final Map<String, String> requestHeaders;
     private final CampaignAudioHandoff campaignAudioHandoff;
     private final QuantumAssetStore assetStore;
+    private final QuantumStartupAssetDownloader startupAssetDownloader;
 
     public GameWebViewClient(
             Context context,
@@ -46,12 +48,27 @@ public final class GameWebViewClient extends WebViewClient {
         this.callbacks = callbacks;
         this.requestHeaders = Collections.unmodifiableMap(new LinkedHashMap<>(requestHeaders));
         this.campaignAudioHandoff = new CampaignAudioHandoff(context);
-        this.assetStore = new QuantumAssetStore(
-                context,
-                AppConfig.ASSET_STORE_TRUSTED_HOST,
-                AppConfig.ASSET_STORE_PATH_PREFIX,
-                AppConfig.ASSET_STORE_EXCLUDED_PATH_PREFIX
-        );
+        this.assetStore = AppConfig.QUANTUM_ASSET_STORE_ENABLED
+                ? new QuantumAssetStore(
+                        context,
+                        AppConfig.ASSET_STORE_TRUSTED_HOST,
+                        AppConfig.ASSET_STORE_PATH_PREFIX,
+                        AppConfig.ASSET_STORE_EXCLUDED_PATH_PREFIX
+                )
+                : null;
+        this.startupAssetDownloader = assetStore != null && AppConfig.NATIVE_ASSET_DOWNLOADER_ENABLED
+                ? new QuantumStartupAssetDownloader(
+                        assetStore,
+                        AppConfig.ASSET_STORE_TRUSTED_HOST,
+                        AppConfig.ASSET_STORE_PATH_PREFIX,
+                        AppConfig.ASSET_STORE_EXCLUDED_PATH_PREFIX,
+                        AppConfig.ASSET_MANIFEST_URL,
+                        AppConfig.ASSET_DOWNLOADER_ROOTS
+                )
+                : null;
+        if (startupAssetDownloader != null) {
+            startupAssetDownloader.start(this.requestHeaders);
+        }
     }
 
     @Override
@@ -63,14 +80,24 @@ public final class GameWebViewClient extends WebViewClient {
     public void onPageFinished(WebView view, String url) {
         if (navigationPolicy.isTrustedHttps(url)) {
             campaignAudioHandoff.inject(view);
-            QuantumAssetWarmup.capture(view, assetStore, requestHeaders);
+            if (assetStore != null && AppConfig.ASSET_STORE_PAGE_WARMUP_ENABLED) {
+                view.postDelayed(
+                        () -> {
+                            if (navigationPolicy.isTrustedHttps(view.getUrl())) {
+                                QuantumAssetWarmup.capture(view, assetStore, requestHeaders);
+                            }
+                        },
+                        AppConfig.ASSET_STORE_PAGE_WARMUP_DELAY_MS
+                );
+            }
         }
         callbacks.onPageReady();
     }
 
     @Override
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-        if (!request.isForMainFrame()
+        if (assetStore != null
+                && !request.isForMainFrame()
                 && "GET".equalsIgnoreCase(request.getMethod())
                 && !hasHeader(request.getRequestHeaders(), "Range")) {
             String source = request.getUrl().toString();
@@ -133,7 +160,12 @@ public final class GameWebViewClient extends WebViewClient {
     }
 
     public void close() {
-        assetStore.close();
+        if (startupAssetDownloader != null) {
+            startupAssetDownloader.close();
+        }
+        if (assetStore != null) {
+            assetStore.close();
+        }
     }
 
     private boolean handleNavigation(String url) {

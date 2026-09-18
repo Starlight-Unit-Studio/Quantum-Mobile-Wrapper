@@ -29,6 +29,7 @@ import de.starlightunit.wrapper.session.QuantumSessionCookieStore;
 import de.starlightunit.wrapper.web.GameWebChromeClient;
 import de.starlightunit.wrapper.web.GameWebViewClient;
 import de.starlightunit.wrapper.web.WebViewConfigurator;
+import de.starlightunit.wrapper.web.WebViewProfileHeaders;
 import de.starlightunit.wrapper.web.WrapperRequestHeaders;
 
 public final class MainActivity extends Activity
@@ -74,6 +75,7 @@ public final class MainActivity extends Activity
 
         navigationPolicy = new NavigationPolicy(AppConfig.TRUSTED_DOMAIN);
         requestHeaders = WrapperRequestHeaders.create();
+        WebViewProfileHeaders.install(webView, AppConfig.START_URL, requestHeaders);
         nativeMediaPlayer = new QuantumNativeMediaPlayer(this);
         webView.addJavascriptInterface(
                 new QuantumNativeMediaBridge(webView, navigationPolicy, nativeMediaPlayer),
@@ -83,7 +85,7 @@ public final class MainActivity extends Activity
         webView.setWebViewClient(webViewClient);
         chromeClient = new GameWebChromeClient(fullscreenContainer, this, this);
         webView.setWebChromeClient(chromeClient);
-        webView.setDownloadListener(new AppDownloadListener(this));
+        webView.setDownloadListener(new AppDownloadListener(this, requestHeaders));
 
         retryButton.setOnClickListener(v -> {
             errorPanel.setVisibility(View.GONE);
