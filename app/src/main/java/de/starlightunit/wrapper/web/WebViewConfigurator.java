@@ -8,6 +8,7 @@ import android.webkit.WebView;
 
 import de.starlightunit.wrapper.BuildConfig;
 import de.starlightunit.wrapper.config.AppConfig;
+import de.starlightunit.wrapper.navigation.NewWindowPolicy;
 
 public final class WebViewConfigurator {
     private WebViewConfigurator() {
@@ -23,7 +24,9 @@ public final class WebViewConfigurator {
         settings.setAllowContentAccess(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(!AppConfig.ALLOW_AUTOPLAY_MEDIA);
-        settings.setSupportMultipleWindows(false);
+        settings.setSupportMultipleWindows(
+                NewWindowPolicy.supportsMultipleWindows(AppConfig.NEW_WINDOW_POLICY)
+        );
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setSupportZoom(AppConfig.PINCH_TO_ZOOM_ENABLED);
         settings.setBuiltInZoomControls(AppConfig.PINCH_TO_ZOOM_ENABLED);
