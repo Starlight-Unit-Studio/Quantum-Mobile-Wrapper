@@ -9,6 +9,9 @@ public final class AppConfig {
     public static final String NATIVE_MEDIA_BRIDGE_NAME = "QuantumNMP";
     public static final String NATIVE_MEDIA_PATH_PREFIX = "/assets/sounds/campaign/";
 
+    public static final boolean QUANTUM_ASSET_STORE_ENABLED = true;
+    public static final boolean ASSET_STORE_PAGE_WARMUP_ENABLED = false;
+    public static final long ASSET_STORE_PAGE_WARMUP_DELAY_MS = 2_000L;
     public static final String ASSET_STORE_TRUSTED_HOST = "game.starlight-unit.de";
     public static final String ASSET_STORE_PATH_PREFIX = "/assets/";
     public static final String ASSET_STORE_EXCLUDED_PATH_PREFIX = NATIVE_MEDIA_PATH_PREFIX;
@@ -18,6 +21,7 @@ public final class AppConfig {
     public static final String WRAPPER_VERSION_HEADER_NAME = "X-Starlight-Wrapper-Version";
     public static final String APP_HEADER_NAME = "X-Starlight-App";
     public static final String APP_HEADER_VALUE = "starlight-unit-game";
+    public static final String CUSTOM_REQUEST_HEADERS_JSON = "{}";
 
     public static final boolean KEEP_SCREEN_ON = true;
     public static final boolean ALLOW_AUTOPLAY_MEDIA = true;
