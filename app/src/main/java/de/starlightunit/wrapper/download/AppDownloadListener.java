@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import de.starlightunit.wrapper.R;
+import de.starlightunit.wrapper.config.AppConfig;
 
 public final class AppDownloadListener implements DownloadListener {
     private final Context context;
@@ -72,7 +73,13 @@ public final class AppDownloadListener implements DownloadListener {
                 request.addRequestHeader("Cookie", cookies);
             }
 
-            if (canWritePublicDownloads()) {
+            boolean legacyPermissionGranted = context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED;
+            if (DownloadDestinationPolicy.usePublicDownloads(
+                    AppConfig.PUBLIC_DOWNLOADS_ENABLED,
+                    Build.VERSION.SDK_INT,
+                    legacyPermissionGranted
+            )) {
                 request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
             } else {
                 request.setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName);
@@ -104,11 +111,4 @@ public final class AppDownloadListener implements DownloadListener {
                 && !"connection".equals(normalized);
     }
 
-    private boolean canWritePublicDownloads() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return true;
-        }
-        return context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                == PackageManager.PERMISSION_GRANTED;
-    }
 }
