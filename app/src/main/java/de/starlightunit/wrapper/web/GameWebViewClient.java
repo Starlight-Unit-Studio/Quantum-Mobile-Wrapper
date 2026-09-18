@@ -46,12 +46,14 @@ public final class GameWebViewClient extends WebViewClient {
         this.callbacks = callbacks;
         this.requestHeaders = Collections.unmodifiableMap(new LinkedHashMap<>(requestHeaders));
         this.campaignAudioHandoff = new CampaignAudioHandoff(context);
-        this.assetStore = new QuantumAssetStore(
-                context,
-                AppConfig.ASSET_STORE_TRUSTED_HOST,
-                AppConfig.ASSET_STORE_PATH_PREFIX,
-                AppConfig.ASSET_STORE_EXCLUDED_PATH_PREFIX
-        );
+        this.assetStore = AppConfig.QUANTUM_ASSET_STORE_ENABLED
+                ? new QuantumAssetStore(
+                        context,
+                        AppConfig.ASSET_STORE_TRUSTED_HOST,
+                        AppConfig.ASSET_STORE_PATH_PREFIX,
+                        AppConfig.ASSET_STORE_EXCLUDED_PATH_PREFIX
+                )
+                : null;
     }
 
     @Override
@@ -63,14 +65,24 @@ public final class GameWebViewClient extends WebViewClient {
     public void onPageFinished(WebView view, String url) {
         if (navigationPolicy.isTrustedHttps(url)) {
             campaignAudioHandoff.inject(view);
-            QuantumAssetWarmup.capture(view, assetStore, requestHeaders);
+            if (assetStore != null && AppConfig.ASSET_STORE_PAGE_WARMUP_ENABLED) {
+                view.postDelayed(
+                        () -> {
+                            if (navigationPolicy.isTrustedHttps(view.getUrl())) {
+                                QuantumAssetWarmup.capture(view, assetStore, requestHeaders);
+                            }
+                        },
+                        AppConfig.ASSET_STORE_PAGE_WARMUP_DELAY_MS
+                );
+            }
         }
         callbacks.onPageReady();
     }
 
     @Override
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-        if (!request.isForMainFrame()
+        if (assetStore != null
+                && !request.isForMainFrame()
                 && "GET".equalsIgnoreCase(request.getMethod())
                 && !hasHeader(request.getRequestHeaders(), "Range")) {
             String source = request.getUrl().toString();
@@ -133,7 +145,9 @@ public final class GameWebViewClient extends WebViewClient {
     }
 
     public void close() {
-        assetStore.close();
+        if (assetStore != null) {
+            assetStore.close();
+        }
     }
 
     private boolean handleNavigation(String url) {
