@@ -18,6 +18,7 @@ public final class AppConfig {
     public static final String WRAPPER_VERSION_HEADER_NAME = "X-Starlight-Wrapper-Version";
     public static final String APP_HEADER_NAME = "X-Starlight-App";
     public static final String APP_HEADER_VALUE = "starlight-unit-game";
+    public static final String CUSTOM_REQUEST_HEADERS_JSON = "{}";
 
     public static final boolean KEEP_SCREEN_ON = true;
     public static final boolean ALLOW_AUTOPLAY_MEDIA = true;
