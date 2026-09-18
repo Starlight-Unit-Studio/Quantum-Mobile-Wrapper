@@ -79,6 +79,7 @@ public final class GameWebViewClient extends WebViewClient {
     @Override
     public void onPageFinished(WebView view, String url) {
         if (navigationPolicy.isTrustedHttps(url)) {
+            WebOverrides.apply(view);
             campaignAudioHandoff.inject(view);
             if (assetStore != null && AppConfig.ASSET_STORE_PAGE_WARMUP_ENABLED) {
                 view.postDelayed(
