@@ -1,10 +1,7 @@
 package de.starlightunit.wrapper.web;
 
-import android.content.ActivityNotFoundException;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Bitmap;
-import android.net.Uri;
 import android.net.http.SslError;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceError;
@@ -20,6 +17,8 @@ import java.util.Map;
 import de.starlightunit.wrapper.assets.QuantumAssetStore;
 import de.starlightunit.wrapper.assets.QuantumStartupAssetDownloader;
 import de.starlightunit.wrapper.config.AppConfig;
+import de.starlightunit.wrapper.navigation.ExternalLinkLauncher;
+import de.starlightunit.wrapper.navigation.LinkRoutingPolicy;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 
 public final class GameWebViewClient extends WebViewClient {
@@ -31,6 +30,7 @@ public final class GameWebViewClient extends WebViewClient {
 
     private final Context context;
     private final NavigationPolicy navigationPolicy;
+    private final LinkRoutingPolicy linkRoutingPolicy;
     private final Callbacks callbacks;
     private final Map<String, String> requestHeaders;
     private final CampaignAudioHandoff campaignAudioHandoff;
@@ -40,11 +40,13 @@ public final class GameWebViewClient extends WebViewClient {
     public GameWebViewClient(
             Context context,
             NavigationPolicy navigationPolicy,
+            LinkRoutingPolicy linkRoutingPolicy,
             Callbacks callbacks,
             Map<String, String> requestHeaders
     ) {
         this.context = context;
         this.navigationPolicy = navigationPolicy;
+        this.linkRoutingPolicy = linkRoutingPolicy;
         this.callbacks = callbacks;
         this.requestHeaders = Collections.unmodifiableMap(new LinkedHashMap<>(requestHeaders));
         this.campaignAudioHandoff = new CampaignAudioHandoff(context);
@@ -119,8 +121,10 @@ public final class GameWebViewClient extends WebViewClient {
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
         String url = request.getUrl().toString();
-        if (navigationPolicy.isTrustedHttps(url)) {
-            if (request.isForMainFrame()
+        LinkRoutingPolicy.Action action = linkRoutingPolicy.actionFor(url);
+        if (action == LinkRoutingPolicy.Action.INTERNAL) {
+            if (navigationPolicy.isTrustedHttps(url)
+                    && request.isForMainFrame()
                     && "GET".equalsIgnoreCase(request.getMethod())
                     && !WrapperRequestHeaders.containsConfiguredHeaders(request.getRequestHeaders())) {
                 view.loadUrl(url, requestHeaders);
@@ -128,13 +132,27 @@ public final class GameWebViewClient extends WebViewClient {
             }
             return false;
         }
-        return handleNavigation(url);
+        if (action == LinkRoutingPolicy.Action.EXTERNAL) {
+            ExternalLinkLauncher.open(context, url);
+        }
+        return true;
     }
 
     @SuppressWarnings("deprecation")
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
-        return handleNavigation(url);
+        LinkRoutingPolicy.Action action = linkRoutingPolicy.actionFor(url);
+        if (action == LinkRoutingPolicy.Action.INTERNAL) {
+            if (navigationPolicy.isTrustedHttps(url)) {
+                view.loadUrl(url, requestHeaders);
+                return true;
+            }
+            return false;
+        }
+        if (action == LinkRoutingPolicy.Action.EXTERNAL) {
+            ExternalLinkLauncher.open(context, url);
+        }
+        return true;
     }
 
     @Override
@@ -169,33 +187,6 @@ public final class GameWebViewClient extends WebViewClient {
         }
     }
 
-    private boolean handleNavigation(String url) {
-        if (navigationPolicy.shouldStayInWebView(url)) {
-            return false;
-        }
-
-        if (!isAllowedExternalScheme(url)) {
-            return true;
-        }
-
-        try {
-            Intent intent;
-            String scheme = Uri.parse(url).getScheme();
-            if ("intent".equalsIgnoreCase(scheme)) {
-                intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
-                intent.setComponent(null);
-                intent.setSelector(null);
-            } else {
-                intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-            }
-            intent.addCategory(Intent.CATEGORY_BROWSABLE);
-            context.startActivity(intent);
-        } catch (ActivityNotFoundException | SecurityException | java.net.URISyntaxException ignored) {
-            // Unsupported external targets are blocked instead of being loaded inside the game WebView.
-        }
-        return true;
-    }
-
     private static boolean hasHeader(Map<String, String> headers, String expectedName) {
         if (headers == null || headers.isEmpty()) {
             return false;
@@ -208,19 +199,4 @@ public final class GameWebViewClient extends WebViewClient {
         return false;
     }
 
-    private static boolean isAllowedExternalScheme(String url) {
-        Uri uri = Uri.parse(url);
-        String scheme = uri.getScheme();
-        if (scheme == null) {
-            return false;
-        }
-        String normalized = scheme.toLowerCase(java.util.Locale.ROOT);
-        return "https".equals(normalized)
-                || "http".equals(normalized)
-                || "mailto".equals(normalized)
-                || "tel".equals(normalized)
-                || "geo".equals(normalized)
-                || "market".equals(normalized)
-                || "intent".equals(normalized);
-    }
 }

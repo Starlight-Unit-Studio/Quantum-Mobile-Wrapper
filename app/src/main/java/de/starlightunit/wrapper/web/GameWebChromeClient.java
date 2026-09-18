@@ -1,10 +1,13 @@
 package de.starlightunit.wrapper.web;
 
+import android.os.Message;
 import android.view.View;
 import android.webkit.ConsoleMessage;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
 import de.starlightunit.wrapper.BuildConfig;
@@ -14,6 +17,10 @@ public final class GameWebChromeClient extends WebChromeClient {
         void openFileChooser(ValueCallback<android.net.Uri[]> callback, FileChooserParams params);
     }
 
+    public interface NewWindowHost {
+        void openNewWindow(String url);
+    }
+
     public interface Callbacks {
         void onProgress(int progress);
         void onFullscreenChanged(boolean fullscreen);
@@ -21,6 +28,7 @@ public final class GameWebChromeClient extends WebChromeClient {
 
     private final FrameLayout fullscreenContainer;
     private final FileChooserHost fileChooserHost;
+    private final NewWindowHost newWindowHost;
     private final Callbacks callbacks;
     private View customView;
     private CustomViewCallback customViewCallback;
@@ -28,16 +36,69 @@ public final class GameWebChromeClient extends WebChromeClient {
     public GameWebChromeClient(
             FrameLayout fullscreenContainer,
             FileChooserHost fileChooserHost,
+            NewWindowHost newWindowHost,
             Callbacks callbacks
     ) {
         this.fullscreenContainer = fullscreenContainer;
         this.fileChooserHost = fileChooserHost;
+        this.newWindowHost = newWindowHost;
         this.callbacks = callbacks;
     }
 
     @Override
     public void onProgressChanged(WebView view, int newProgress) {
         callbacks.onProgress(newProgress);
+    }
+
+    @Override
+    public boolean onCreateWindow(
+            WebView view,
+            boolean isDialog,
+            boolean isUserGesture,
+            Message resultMsg
+    ) {
+        WebView popup = new WebView(view.getContext());
+        boolean[] dispatched = new boolean[]{false};
+        popup.setWebViewClient(new WebViewClient() {
+            private void dispatch(String url) {
+                if (dispatched[0] || url == null || url.trim().isEmpty()) {
+                    return;
+                }
+                dispatched[0] = true;
+                newWindowHost.openNewWindow(url);
+                popup.post(popup::destroy);
+            }
+
+            @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                dispatch(url);
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                dispatch(request.getUrl().toString());
+                return true;
+            }
+
+            @SuppressWarnings("deprecation")
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                dispatch(url);
+                return true;
+            }
+        });
+
+        WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+        transport.setWebView(popup);
+        resultMsg.sendToTarget();
+        return true;
+    }
+
+    @Override
+    public void onCloseWindow(WebView window) {
+        if (window != null) {
+            window.destroy();
+        }
     }
 
     @Override

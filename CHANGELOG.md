@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+Native link handling runtime.
+
+- Adds first-match-wins link rules for scheme, host and path-prefix matching.
+- Link rules can keep trusted targets internal, delegate allowed targets externally, or block them.
+- Adds profile-controlled target-blank/window.open policy for Blocked, Internal and External behavior.
+- Internal new windows are folded into the existing WebView; temporary popup WebViews are destroyed after URL capture.
+- Adds trusted custom-scheme deep links and resolves incoming intents only to trusted app HTTPS URLs.
+- Centralizes Android external-link launching behind the same allowed-scheme policy.
+- Keeps Android 6 / API 23 compatibility and the existing trusted-domain boundary.
+
 Native Navigation runtime foundation.
 
 - Adds native Top Bar, Sidebar, Bottom Tabs and Contextual Toolbar surfaces controlled by compiled app profiles.
