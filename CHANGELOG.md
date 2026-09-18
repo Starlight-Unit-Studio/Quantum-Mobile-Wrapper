@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+Runtime Web Overrides parity.
+
+- Applies configured Custom CSS to trusted app pages without modifying external pages.
+- Executes configured Custom JavaScript on trusted pages after navigation completes.
+- Adds cookie persistence modes for encrypted persistent sessions, website/server defaults and session-only starts.
+- Preserves legacy Quantum behavior by treating older `default` cookie settings as persistent.
+- Keeps Android 6 / API 23 compatibility and the existing trusted-origin boundary.
+
+Runtime Web Overrides parity.
+
+- Applies configured Custom CSS to trusted app pages without modifying external pages.
+- Executes configured Custom JavaScript on trusted pages after navigation completes.
+- Adds cookie persistence modes for encrypted persistent sessions, website/server defaults and session-only starts.
+- Preserves legacy Quantum behavior by treating older `default` cookie settings as persistent.
+- Keeps Android 6 / API 23 compatibility and the existing trusted-origin boundary.
+
 Configurable native WebView loading indicators.
 
 - Preserves the current top loading bar as the default for existing apps.

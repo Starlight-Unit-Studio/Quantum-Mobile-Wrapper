@@ -25,6 +25,9 @@ public final class AppConfig {
     public static final String APP_HEADER_NAME = "X-Starlight-App";
     public static final String APP_HEADER_VALUE = "starlight-unit-game";
     public static final String CUSTOM_REQUEST_HEADERS_JSON = "{}";
+    public static final String CUSTOM_CSS = "";
+    public static final String CUSTOM_JAVASCRIPT = "";
+    public static final String COOKIE_PERSISTENCE_MODE = "persistent";
 
     public static final String LOADING_INDICATOR_STYLE = "top-bar";
     public static final String LOADING_INDICATOR_COLOR = "#6fc7ff";
