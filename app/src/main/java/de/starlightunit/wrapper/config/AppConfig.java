@@ -34,6 +34,12 @@ public final class AppConfig {
     public static final String NAVIGATION_BAR_COLOR = "#020611";
     public static final String SPLASH_BACKGROUND_COLOR = "#020611";
 
+    public static final String NATIVE_NAVIGATION_TITLE = "Starlight Unit";
+    public static final String NATIVE_NAVIGATION_ITEMS_JSON = "[]";
+    public static final String NATIVE_NAVIGATION_BACKGROUND_COLOR = "#020611";
+    public static final String NATIVE_NAVIGATION_FOREGROUND_COLOR = "#ffffff";
+    public static final String NATIVE_NAVIGATION_ACCENT_COLOR = "#6fc7ff";
+
     public static final String LOADING_INDICATOR_STYLE = "top-bar";
     public static final String LOADING_INDICATOR_COLOR = "#6fc7ff";
     public static final int LOADING_BAR_THICKNESS_DP = 3;
@@ -42,6 +48,10 @@ public final class AppConfig {
 
     public static final boolean KEEP_SCREEN_ON = true;
     public static final boolean PAGE_TRANSITIONS_ENABLED = false;
+    public static final boolean TOP_NAVIGATION_ENABLED = false;
+    public static final boolean SIDEBAR_NAVIGATION_ENABLED = false;
+    public static final boolean BOTTOM_TABS_ENABLED = false;
+    public static final boolean CONTEXTUAL_TOOLBAR_ENABLED = false;
     public static final boolean IMMERSIVE_FULLSCREEN_ENABLED = true;
     public static final boolean PULL_TO_REFRESH_ENABLED = false;
     public static final boolean PINCH_TO_ZOOM_ENABLED = false;
