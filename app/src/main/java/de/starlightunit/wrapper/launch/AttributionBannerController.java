@@ -33,7 +33,7 @@ public final class AttributionBannerController {
         this.activity = activity;
         this.banner = banner;
         this.enabled = enabled;
-        this.durationMs = Math.max(2000L, Math.min(4000L, durationMs));
+        this.durationMs = SplashAttributionPolicy.clampDurationMs(durationMs);
         applyBottomInset(bottomInsetDp);
         banner.setVisibility(View.GONE);
         banner.setAlpha(0f);
@@ -61,12 +61,14 @@ public final class AttributionBannerController {
     }
 
     private void maybeShow() {
-        if (cancelled
-                || shown
-                || !enabled
-                || !introFinished
-                || !customSplashUsed
-                || !firstPageReady) {
+        if (!SplashAttributionPolicy.shouldShow(
+                enabled,
+                introFinished,
+                customSplashUsed,
+                firstPageReady,
+                shown,
+                cancelled
+        )) {
             return;
         }
 
