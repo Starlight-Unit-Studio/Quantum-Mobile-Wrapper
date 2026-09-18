@@ -26,6 +26,12 @@ public final class AppConfig {
     public static final String APP_HEADER_VALUE = "starlight-unit-game";
     public static final String CUSTOM_REQUEST_HEADERS_JSON = "{}";
 
+    public static final String LOADING_INDICATOR_STYLE = "top-bar";
+    public static final String LOADING_INDICATOR_COLOR = "#6fc7ff";
+    public static final int LOADING_BAR_THICKNESS_DP = 3;
+    public static final int LOADING_SPINNER_SIZE_DP = 56;
+    public static final int LOADING_OVERLAY_DIM_PERCENT = 35;
+
     public static final boolean KEEP_SCREEN_ON = true;
     public static final boolean ALLOW_AUTOPLAY_MEDIA = true;
     public static final boolean ALLOW_THIRD_PARTY_COOKIES = true;
