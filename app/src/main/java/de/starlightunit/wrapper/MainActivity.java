@@ -33,7 +33,11 @@ import de.starlightunit.wrapper.download.AppDownloadListener;
 import de.starlightunit.wrapper.download.DownloadDestinationPolicy;
 import de.starlightunit.wrapper.launch.QuantumIntroController;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
+import de.starlightunit.wrapper.navigation.DeepLinkResolver;
+import de.starlightunit.wrapper.navigation.ExternalLinkLauncher;
+import de.starlightunit.wrapper.navigation.LinkRoutingPolicy;
 import de.starlightunit.wrapper.navigation.NativeNavigationController;
+import de.starlightunit.wrapper.navigation.NewWindowPolicy;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 import de.starlightunit.wrapper.session.CookiePersistencePolicy;
 import de.starlightunit.wrapper.session.QuantumSessionCookieStore;
@@ -49,6 +53,7 @@ import de.starlightunit.wrapper.web.WrapperRequestHeaders;
 public final class MainActivity extends Activity
         implements GameWebChromeClient.FileChooserHost,
         GameWebViewClient.Callbacks,
+        GameWebChromeClient.NewWindowHost,
         GameWebChromeClient.Callbacks {
 
     private static final int FILE_CHOOSER_REQUEST = 7001;
@@ -64,6 +69,7 @@ public final class MainActivity extends Activity
     private ValueCallback<android.net.Uri[]> pendingFileCallback;
     private boolean mainFrameFailed;
     private NavigationPolicy navigationPolicy;
+    private LinkRoutingPolicy linkRoutingPolicy;
     private NativeNavigationController nativeNavigation;
     private Map<String, String> requestHeaders;
     private QuantumNativeMediaPlayer nativeMediaPlayer;
@@ -124,6 +130,7 @@ public final class MainActivity extends Activity
         }
 
         navigationPolicy = new NavigationPolicy(AppConfig.TRUSTED_DOMAIN);
+        linkRoutingPolicy = new LinkRoutingPolicy(navigationPolicy, AppConfig.LINK_RULES_JSON);
         nativeNavigation = new NativeNavigationController(
                 this,
                 refreshLayout,
@@ -193,9 +200,9 @@ public final class MainActivity extends Activity
                 new QuantumNativeMediaBridge(webView, navigationPolicy, nativeMediaPlayer),
                 AppConfig.NATIVE_MEDIA_BRIDGE_NAME
         );
-        webViewClient = new GameWebViewClient(this, navigationPolicy, this, requestHeaders);
+        webViewClient = new GameWebViewClient(this, navigationPolicy, linkRoutingPolicy, this, requestHeaders);
         webView.setWebViewClient(webViewClient);
-        chromeClient = new GameWebChromeClient(fullscreenContainer, this, this);
+        chromeClient = new GameWebChromeClient(fullscreenContainer, this, this, this);
         webView.setWebChromeClient(chromeClient);
         webView.setDownloadListener(new AppDownloadListener(this, requestHeaders));
         requestLegacyPublicDownloadPermissionIfNeeded();
@@ -207,7 +214,8 @@ public final class MainActivity extends Activity
         });
 
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
-            loadTrustedUrl(AppConfig.START_URL);
+            String deepLinkTarget = resolveDeepLinkTarget(getIntent());
+            loadTrustedUrl(deepLinkTarget.isEmpty() ? AppConfig.START_URL : deepLinkTarget);
         }
 
         if (Build.VERSION.SDK_INT >= 33) {
@@ -220,6 +228,28 @@ public final class MainActivity extends Activity
                 ? requestedUrl
                 : AppConfig.START_URL;
         webView.loadUrl(targetUrl, requestHeaders);
+    }
+
+    private String resolveDeepLinkTarget(Intent intent) {
+        if (intent == null || intent.getData() == null) {
+            return "";
+        }
+        return DeepLinkResolver.resolve(
+                intent.getData().toString(),
+                AppConfig.DEEP_LINK_SCHEME,
+                AppConfig.START_URL,
+                navigationPolicy
+        );
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String target = resolveDeepLinkTarget(intent);
+        if (!target.isEmpty()) {
+            loadTrustedUrl(target);
+        }
     }
 
     private void requestLegacyPublicDownloadPermissionIfNeeded() {
@@ -289,6 +319,27 @@ public final class MainActivity extends Activity
             flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
         }
         decorView.setSystemUiVisibility(flags);
+    }
+
+    @Override
+    public void openNewWindow(String url) {
+        String policy = NewWindowPolicy.normalize(AppConfig.NEW_WINDOW_POLICY);
+        if (NewWindowPolicy.BLOCKED.equals(policy)) {
+            return;
+        }
+
+        LinkRoutingPolicy.Action action = linkRoutingPolicy.actionFor(url);
+        if (NewWindowPolicy.INTERNAL.equals(policy)) {
+            if (action == LinkRoutingPolicy.Action.INTERNAL && navigationPolicy.isTrustedHttps(url)) {
+                loadTrustedUrl(url);
+            }
+            return;
+        }
+
+        if (NewWindowPolicy.EXTERNAL.equals(policy)
+                && action != LinkRoutingPolicy.Action.BLOCK) {
+            ExternalLinkLauncher.open(this, url);
+        }
     }
 
     @Override
