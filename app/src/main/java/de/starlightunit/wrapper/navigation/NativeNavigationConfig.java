@@ -50,7 +50,7 @@ public final class NativeNavigationConfig {
                 }
                 items.add(new Item(label, target));
             }
-        } catch (RuntimeException ignored) {
+        } catch (Exception ignored) {
             items.clear();
         }
         return new NativeNavigationConfig(safeTitle, items);
