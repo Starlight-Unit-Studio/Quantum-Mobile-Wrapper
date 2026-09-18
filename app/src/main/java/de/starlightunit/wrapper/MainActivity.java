@@ -25,6 +25,7 @@ import de.starlightunit.wrapper.download.AppDownloadListener;
 import de.starlightunit.wrapper.launch.QuantumIntroController;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
+import de.starlightunit.wrapper.session.CookiePersistencePolicy;
 import de.starlightunit.wrapper.session.QuantumSessionCookieStore;
 import de.starlightunit.wrapper.ui.LoadingIndicatorController;
 import de.starlightunit.wrapper.web.GameWebChromeClient;
@@ -84,8 +85,13 @@ public final class MainActivity extends Activity
         introController.start(savedInstanceState != null);
 
         WebViewConfigurator.configure(this, webView);
-        sessionCookieStore = new QuantumSessionCookieStore(this);
-        sessionCookieStore.restore();
+        if (CookiePersistencePolicy.usesEncryptedPersistence(AppConfig.COOKIE_PERSISTENCE_MODE)) {
+            sessionCookieStore = new QuantumSessionCookieStore(this);
+            sessionCookieStore.restore();
+        } else if (savedInstanceState == null
+                && CookiePersistencePolicy.startsFreshSession(AppConfig.COOKIE_PERSISTENCE_MODE)) {
+            CookiePersistencePolicy.clearForFreshSession();
+        }
 
         navigationPolicy = new NavigationPolicy(AppConfig.TRUSTED_DOMAIN);
         requestHeaders = WrapperRequestHeaders.create();
