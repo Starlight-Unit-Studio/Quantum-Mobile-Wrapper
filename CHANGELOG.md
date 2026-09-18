@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+Native Navigation runtime foundation.
+
+- Adds native Top Bar, Sidebar, Bottom Tabs and Contextual Toolbar surfaces controlled by compiled app profiles.
+- Top Bar shows the configured app title and native Home/Sidebar actions.
+- Sidebar and Bottom Tabs share one ordered list of up to 12 trusted navigation destinations; Bottom Tabs expose the first five.
+- Contextual Toolbar provides native Back, Home, Reload and Forward actions tied to WebView history.
+- Relative menu targets resolve against the app start URL and all native navigation still passes through Quantum's trusted-domain loader.
+- Adds profile-controlled navigation background, foreground and accent colors.
+- Native bars reserve WebView layout space instead of covering page content.
+- Keeps Android 6 / API 23 compatibility and the existing Android 16 lifecycle safeguards.
+
 Runtime theme controls and page transitions.
 
 - Adds Dark / Light / Auto WebView theme modes with system-theme resolution for Auto.

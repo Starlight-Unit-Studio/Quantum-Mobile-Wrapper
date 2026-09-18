@@ -16,8 +16,12 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.TextView;
 
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
@@ -29,6 +33,7 @@ import de.starlightunit.wrapper.download.AppDownloadListener;
 import de.starlightunit.wrapper.download.DownloadDestinationPolicy;
 import de.starlightunit.wrapper.launch.QuantumIntroController;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
+import de.starlightunit.wrapper.navigation.NativeNavigationController;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 import de.starlightunit.wrapper.session.CookiePersistencePolicy;
 import de.starlightunit.wrapper.session.QuantumSessionCookieStore;
@@ -59,6 +64,7 @@ public final class MainActivity extends Activity
     private ValueCallback<android.net.Uri[]> pendingFileCallback;
     private boolean mainFrameFailed;
     private NavigationPolicy navigationPolicy;
+    private NativeNavigationController nativeNavigation;
     private Map<String, String> requestHeaders;
     private QuantumNativeMediaPlayer nativeMediaPlayer;
     private QuantumIntroController introController;
@@ -118,6 +124,68 @@ public final class MainActivity extends Activity
         }
 
         navigationPolicy = new NavigationPolicy(AppConfig.TRUSTED_DOMAIN);
+        nativeNavigation = new NativeNavigationController(
+                this,
+                refreshLayout,
+                findViewById(R.id.native_top_bar),
+                findViewById(R.id.native_sidebar_launcher),
+                findViewById(R.id.native_bottom_tabs),
+                findViewById(R.id.native_bottom_tabs_content),
+                findViewById(R.id.native_context_toolbar),
+                findViewById(R.id.native_sidebar_overlay),
+                findViewById(R.id.native_sidebar_panel),
+                findViewById(R.id.native_sidebar_content),
+                new NativeNavigationController.Host() {
+                    @Override
+                    public void navigate(String target) {
+                        loadTrustedUrl(target);
+                    }
+
+                    @Override
+                    public void home() {
+                        loadTrustedUrl(AppConfig.START_URL);
+                    }
+
+                    @Override
+                    public void reload() {
+                        loadTrustedUrl(webView == null ? AppConfig.START_URL : webView.getUrl());
+                    }
+
+                    @Override
+                    public void back() {
+                        if (webView != null && webView.canGoBack()) {
+                            webView.goBack();
+                        }
+                    }
+
+                    @Override
+                    public void forward() {
+                        if (webView != null && webView.canGoForward()) {
+                            webView.goForward();
+                        }
+                    }
+
+                    @Override
+                    public boolean canGoBack() {
+                        return webView != null && webView.canGoBack();
+                    }
+
+                    @Override
+                    public boolean canGoForward() {
+                        return webView != null && webView.canGoForward();
+                    }
+                },
+                AppConfig.START_URL,
+                AppConfig.NATIVE_NAVIGATION_TITLE,
+                AppConfig.NATIVE_NAVIGATION_ITEMS_JSON,
+                AppConfig.TOP_NAVIGATION_ENABLED,
+                AppConfig.SIDEBAR_NAVIGATION_ENABLED,
+                AppConfig.BOTTOM_TABS_ENABLED,
+                AppConfig.CONTEXTUAL_TOOLBAR_ENABLED,
+                AppConfig.NATIVE_NAVIGATION_BACKGROUND_COLOR,
+                AppConfig.NATIVE_NAVIGATION_FOREGROUND_COLOR,
+                AppConfig.NATIVE_NAVIGATION_ACCENT_COLOR
+        );
         requestHeaders = WrapperRequestHeaders.create();
         WebViewProfileHeaders.install(webView, AppConfig.START_URL, requestHeaders);
         nativeMediaPlayer = new QuantumNativeMediaPlayer(this);
@@ -274,6 +342,9 @@ public final class MainActivity extends Activity
         if (sessionCookieStore != null) {
             sessionCookieStore.capture();
         }
+        if (nativeNavigation != null && webView != null) {
+            nativeNavigation.updateHistoryState(webView.getUrl());
+        }
     }
 
     @Override
@@ -307,6 +378,9 @@ public final class MainActivity extends Activity
     }
 
     private void handleBackNavigation() {
+        if (nativeNavigation != null && nativeNavigation.handleBackPressed()) {
+            return;
+        }
         if (chromeClient != null && chromeClient.isShowingCustomView()) {
             chromeClient.onHideCustomView();
             return;
@@ -418,6 +492,10 @@ public final class MainActivity extends Activity
         if (pendingFileCallback != null) {
             pendingFileCallback.onReceiveValue(null);
             pendingFileCallback = null;
+        }
+        if (nativeNavigation != null) {
+            nativeNavigation.destroy();
+            nativeNavigation = null;
         }
         if (pageTransition != null) {
             pageTransition.reset();

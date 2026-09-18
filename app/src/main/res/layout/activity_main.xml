@@ -18,6 +18,77 @@
             android:background="@color/black" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
+    <LinearLayout
+        android:id="@+id/native_top_bar"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_gravity="top"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/native_sidebar_launcher"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|start"
+        android:gravity="center"
+        android:text="☰"
+        android:textSize="24sp"
+        android:visibility="gone" />
+
+    <HorizontalScrollView
+        android:id="@+id/native_bottom_tabs"
+        android:layout_width="match_parent"
+        android:layout_height="58dp"
+        android:layout_gravity="bottom"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/native_bottom_tabs_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
+    <LinearLayout
+        android:id="@+id/native_context_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:layout_gravity="bottom"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="gone" />
+
+    <FrameLayout
+        android:id="@+id/native_sidebar_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#99000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <ScrollView
+            android:id="@+id/native_sidebar_panel"
+            android:layout_width="280dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="start"
+            android:fillViewport="true"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/native_sidebar_content"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp" />
+        </ScrollView>
+    </FrameLayout>
+
     <ProgressBar
         android:id="@+id/progress"
         style="?android:attr/progressBarStyleHorizontal"
