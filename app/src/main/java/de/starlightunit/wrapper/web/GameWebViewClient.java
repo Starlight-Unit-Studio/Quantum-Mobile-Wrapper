@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import de.starlightunit.wrapper.assets.QuantumAssetStore;
+import de.starlightunit.wrapper.assets.QuantumStartupAssetDownloader;
 import de.starlightunit.wrapper.config.AppConfig;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 
@@ -34,6 +35,7 @@ public final class GameWebViewClient extends WebViewClient {
     private final Map<String, String> requestHeaders;
     private final CampaignAudioHandoff campaignAudioHandoff;
     private final QuantumAssetStore assetStore;
+    private final QuantumStartupAssetDownloader startupAssetDownloader;
 
     public GameWebViewClient(
             Context context,
@@ -54,6 +56,19 @@ public final class GameWebViewClient extends WebViewClient {
                         AppConfig.ASSET_STORE_EXCLUDED_PATH_PREFIX
                 )
                 : null;
+        this.startupAssetDownloader = assetStore != null && AppConfig.NATIVE_ASSET_DOWNLOADER_ENABLED
+                ? new QuantumStartupAssetDownloader(
+                        assetStore,
+                        AppConfig.ASSET_STORE_TRUSTED_HOST,
+                        AppConfig.ASSET_STORE_PATH_PREFIX,
+                        AppConfig.ASSET_STORE_EXCLUDED_PATH_PREFIX,
+                        AppConfig.ASSET_MANIFEST_URL,
+                        AppConfig.ASSET_DOWNLOADER_ROOTS
+                )
+                : null;
+        if (startupAssetDownloader != null) {
+            startupAssetDownloader.start(this.requestHeaders);
+        }
     }
 
     @Override
@@ -145,6 +160,9 @@ public final class GameWebViewClient extends WebViewClient {
     }
 
     public void close() {
+        if (startupAssetDownloader != null) {
+            startupAssetDownloader.close();
+        }
         if (assetStore != null) {
             assetStore.close();
         }
