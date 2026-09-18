@@ -1,8 +1,10 @@
 package de.starlightunit.wrapper;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -24,6 +26,7 @@ import java.util.Map;
 import de.starlightunit.wrapper.bridge.QuantumNativeMediaBridge;
 import de.starlightunit.wrapper.config.AppConfig;
 import de.starlightunit.wrapper.download.AppDownloadListener;
+import de.starlightunit.wrapper.download.DownloadDestinationPolicy;
 import de.starlightunit.wrapper.launch.QuantumIntroController;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
@@ -42,6 +45,7 @@ public final class MainActivity extends Activity
         GameWebChromeClient.Callbacks {
 
     private static final int FILE_CHOOSER_REQUEST = 7001;
+    private static final int LEGACY_DOWNLOAD_PERMISSION_REQUEST = 7002;
 
     private WebView webView;
     private LoadingIndicatorController loadingIndicator;
@@ -119,6 +123,7 @@ public final class MainActivity extends Activity
         chromeClient = new GameWebChromeClient(fullscreenContainer, this, this);
         webView.setWebChromeClient(chromeClient);
         webView.setDownloadListener(new AppDownloadListener(this, requestHeaders));
+        requestLegacyPublicDownloadPermissionIfNeeded();
 
         retryButton.setOnClickListener(v -> {
             errorPanel.setVisibility(View.GONE);
@@ -140,6 +145,21 @@ public final class MainActivity extends Activity
                 ? requestedUrl
                 : AppConfig.START_URL;
         webView.loadUrl(targetUrl, requestHeaders);
+    }
+
+    private void requestLegacyPublicDownloadPermissionIfNeeded() {
+        boolean granted = checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED;
+        if (DownloadDestinationPolicy.needsLegacyWritePermission(
+                AppConfig.PUBLIC_DOWNLOADS_ENABLED,
+                Build.VERSION.SDK_INT,
+                granted
+        )) {
+            requestPermissions(
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    LEGACY_DOWNLOAD_PERMISSION_REQUEST
+            );
+        }
     }
 
     private void configureWindow() {
