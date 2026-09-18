@@ -26,6 +26,7 @@ import de.starlightunit.wrapper.launch.QuantumIntroController;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 import de.starlightunit.wrapper.session.QuantumSessionCookieStore;
+import de.starlightunit.wrapper.ui.LoadingIndicatorController;
 import de.starlightunit.wrapper.web.GameWebChromeClient;
 import de.starlightunit.wrapper.web.GameWebViewClient;
 import de.starlightunit.wrapper.web.WebViewConfigurator;
@@ -40,7 +41,7 @@ public final class MainActivity extends Activity
     private static final int FILE_CHOOSER_REQUEST = 7001;
 
     private WebView webView;
-    private ProgressBar progressBar;
+    private LoadingIndicatorController loadingIndicator;
     private View errorPanel;
     private GameWebChromeClient chromeClient;
     private GameWebViewClient webViewClient;
@@ -60,9 +61,22 @@ public final class MainActivity extends Activity
         enterImmersiveMode();
 
         webView = findViewById(R.id.web_view);
-        progressBar = findViewById(R.id.progress);
+        ProgressBar horizontalProgress = findViewById(R.id.progress);
+        FrameLayout loadingOverlay = findViewById(R.id.loading_overlay);
+        ProgressBar loadingSpinner = findViewById(R.id.loading_spinner);
         errorPanel = findViewById(R.id.error_panel);
         FrameLayout fullscreenContainer = findViewById(R.id.fullscreen_container);
+        loadingIndicator = new LoadingIndicatorController(
+                this,
+                horizontalProgress,
+                loadingOverlay,
+                loadingSpinner,
+                AppConfig.LOADING_INDICATOR_STYLE,
+                AppConfig.LOADING_INDICATOR_COLOR,
+                AppConfig.LOADING_BAR_THICKNESS_DP,
+                AppConfig.LOADING_SPINNER_SIZE_DP,
+                AppConfig.LOADING_OVERLAY_DIM_PERCENT
+        );
         ImageView introOverlay = findViewById(R.id.intro_overlay);
         Button retryButton = findViewById(R.id.retry_button);
 
@@ -172,12 +186,12 @@ public final class MainActivity extends Activity
     public void onPageLoading() {
         mainFrameFailed = false;
         errorPanel.setVisibility(View.GONE);
-        progressBar.setVisibility(View.VISIBLE);
+        loadingIndicator.show();
     }
 
     @Override
     public void onPageReady() {
-        progressBar.setVisibility(View.GONE);
+        loadingIndicator.hide();
         if (!mainFrameFailed) {
             errorPanel.setVisibility(View.GONE);
         }
@@ -195,8 +209,7 @@ public final class MainActivity extends Activity
 
     @Override
     public void onProgress(int progress) {
-        progressBar.setProgress(progress);
-        progressBar.setVisibility(progress >= 100 ? View.GONE : View.VISIBLE);
+        loadingIndicator.setProgress(progress);
     }
 
     @Override
