@@ -61,7 +61,8 @@ public final class GameWebChromeClient extends WebChromeClient {
         boolean[] dispatched = new boolean[]{false};
         popup.setWebViewClient(new WebViewClient() {
             private void dispatch(String url) {
-                if (dispatched[0] || url == null || url.trim().isEmpty()) {
+                if (dispatched[0] || url == null || url.trim().isEmpty()
+                        || "about:blank".equalsIgnoreCase(url.trim())) {
                     return;
                 }
                 dispatched[0] = true;
