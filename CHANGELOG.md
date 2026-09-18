@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+Runtime theme controls and page transitions.
+
+- Adds Dark / Light / Auto WebView theme modes with system-theme resolution for Auto.
+- Exposes the resolved theme to trusted pages through `data-quantum-theme` and CSS `color-scheme`.
+- Uses AndroidX WebKit darkening support when available from the installed System WebView.
+- Applies profile-controlled status bar, navigation bar and splash background colors.
+- Chooses dark or light system-bar icons from configured color luminance.
+- Adds optional native page-load fade transitions without changing the mandatory production splash.
+- Keeps Android 6 / API 23 compatibility and the existing Android 16 system-bar lifecycle safeguards.
+
 Profile-controlled public downloads.
 
 - Adds a compiled Public Downloads runtime flag used by Android DownloadManager.

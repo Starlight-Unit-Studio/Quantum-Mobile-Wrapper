@@ -29,6 +29,11 @@ public final class AppConfig {
     public static final String CUSTOM_JAVASCRIPT = "";
     public static final String COOKIE_PERSISTENCE_MODE = "persistent";
 
+    public static final String WEB_DARK_MODE = "dark";
+    public static final String STATUS_BAR_COLOR = "#020611";
+    public static final String NAVIGATION_BAR_COLOR = "#020611";
+    public static final String SPLASH_BACKGROUND_COLOR = "#020611";
+
     public static final String LOADING_INDICATOR_STYLE = "top-bar";
     public static final String LOADING_INDICATOR_COLOR = "#6fc7ff";
     public static final int LOADING_BAR_THICKNESS_DP = 3;
@@ -36,6 +41,7 @@ public final class AppConfig {
     public static final int LOADING_OVERLAY_DIM_PERCENT = 35;
 
     public static final boolean KEEP_SCREEN_ON = true;
+    public static final boolean PAGE_TRANSITIONS_ENABLED = false;
     public static final boolean IMMERSIVE_FULLSCREEN_ENABLED = true;
     public static final boolean PULL_TO_REFRESH_ENABLED = false;
     public static final boolean PINCH_TO_ZOOM_ENABLED = false;

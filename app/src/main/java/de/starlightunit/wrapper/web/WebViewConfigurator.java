@@ -33,6 +33,7 @@ public final class WebViewConfigurator {
         settings.setUseWideViewPort(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setUserAgentString(settings.getUserAgentString() + AppConfig.USER_AGENT_SUFFIX);
+        WebThemeController.configure(context, settings);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             settings.setSafeBrowsingEnabled(true);

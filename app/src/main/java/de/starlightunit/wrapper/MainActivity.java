@@ -33,6 +33,8 @@ import de.starlightunit.wrapper.navigation.NavigationPolicy;
 import de.starlightunit.wrapper.session.CookiePersistencePolicy;
 import de.starlightunit.wrapper.session.QuantumSessionCookieStore;
 import de.starlightunit.wrapper.ui.LoadingIndicatorController;
+import de.starlightunit.wrapper.ui.PageTransitionController;
+import de.starlightunit.wrapper.ui.SystemBarStyle;
 import de.starlightunit.wrapper.web.GameWebChromeClient;
 import de.starlightunit.wrapper.web.GameWebViewClient;
 import de.starlightunit.wrapper.web.WebViewConfigurator;
@@ -49,6 +51,7 @@ public final class MainActivity extends Activity
 
     private WebView webView;
     private LoadingIndicatorController loadingIndicator;
+    private PageTransitionController pageTransition;
     private SwipeRefreshLayout refreshLayout;
     private View errorPanel;
     private GameWebChromeClient chromeClient;
@@ -69,6 +72,7 @@ public final class MainActivity extends Activity
         applyConfiguredSystemUi(false);
 
         webView = findViewById(R.id.web_view);
+        pageTransition = new PageTransitionController(webView, AppConfig.PAGE_TRANSITIONS_ENABLED);
         refreshLayout = findViewById(R.id.refresh_container);
         ProgressBar horizontalProgress = findViewById(R.id.progress);
         FrameLayout loadingOverlay = findViewById(R.id.loading_overlay);
@@ -96,6 +100,9 @@ public final class MainActivity extends Activity
             loadTrustedUrl(currentUrl);
         });
         ImageView introOverlay = findViewById(R.id.intro_overlay);
+        introOverlay.setBackgroundColor(
+                SystemBarStyle.parseRgb(AppConfig.SPLASH_BACKGROUND_COLOR, Color.BLACK)
+        );
         Button retryButton = findViewById(R.id.retry_button);
 
         introController = new QuantumIntroController(this, introOverlay);
@@ -164,8 +171,12 @@ public final class MainActivity extends Activity
 
     private void configureWindow() {
         Window window = getWindow();
-        window.setStatusBarColor(Color.BLACK);
-        window.setNavigationBarColor(Color.BLACK);
+        window.setStatusBarColor(
+                SystemBarStyle.parseRgb(AppConfig.STATUS_BAR_COLOR, Color.BLACK)
+        );
+        window.setNavigationBarColor(
+                SystemBarStyle.parseRgb(AppConfig.NAVIGATION_BAR_COLOR, Color.BLACK)
+        );
         if (AppConfig.KEEP_SCREEN_ON) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
@@ -175,8 +186,18 @@ public final class MainActivity extends Activity
         boolean fullscreen = forceFullscreen || AppConfig.IMMERSIVE_FULLSCREEN_ENABLED;
         View decorView = getWindow().getDecorView();
 
+        int statusColor = SystemBarStyle.parseRgb(AppConfig.STATUS_BAR_COLOR, Color.BLACK);
+        int navigationColor = SystemBarStyle.parseRgb(AppConfig.NAVIGATION_BAR_COLOR, Color.BLACK);
+        boolean darkStatusIcons = SystemBarStyle.shouldUseDarkIcons(statusColor);
+        boolean darkNavigationIcons = SystemBarStyle.shouldUseDarkIcons(navigationColor);
+
         if (Build.VERSION.SDK_INT >= 30) {
-            Api30WindowHandler.setImmersiveMode(decorView, fullscreen);
+            Api30WindowHandler.setSystemUi(
+                    decorView,
+                    fullscreen,
+                    darkStatusIcons,
+                    darkNavigationIcons
+            );
             return;
         }
 
@@ -189,9 +210,17 @@ public final class MainActivity extends Activity
                             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                             | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             );
-        } else {
-            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+            return;
         }
+
+        int flags = View.SYSTEM_UI_FLAG_VISIBLE;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && darkStatusIcons) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && darkNavigationIcons) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
+        decorView.setSystemUiVisibility(flags);
     }
 
     @Override
@@ -230,12 +259,14 @@ public final class MainActivity extends Activity
     public void onPageLoading() {
         mainFrameFailed = false;
         errorPanel.setVisibility(View.GONE);
+        pageTransition.onPageLoading();
         loadingIndicator.show();
     }
 
     @Override
     public void onPageReady() {
         loadingIndicator.hide();
+        pageTransition.onPageReady();
         refreshLayout.setRefreshing(false);
         if (!mainFrameFailed) {
             errorPanel.setVisibility(View.GONE);
@@ -249,6 +280,7 @@ public final class MainActivity extends Activity
     public void onMainFrameError() {
         mainFrameFailed = true;
         loadingIndicator.hide();
+        pageTransition.reset();
         refreshLayout.setRefreshing(false);
         errorPanel.setVisibility(View.VISIBLE);
     }
@@ -320,7 +352,12 @@ public final class MainActivity extends Activity
         }
 
         @android.annotation.TargetApi(30)
-        static void setImmersiveMode(View decorView, boolean enabled) {
+        static void setSystemUi(
+                View decorView,
+                boolean fullscreen,
+                boolean darkStatusIcons,
+                boolean darkNavigationIcons
+        ) {
             // Android 16 can throw inside PhoneWindow.getInsetsController() when it is
             // queried before DecorView has been installed. Obtain the controller from
             // the actual decor view and defer the request until that view is ready.
@@ -329,9 +366,21 @@ public final class MainActivity extends Activity
                 if (controller == null) {
                     return;
                 }
+
+                int appearance = 0;
+                int appearanceMask = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                if (darkStatusIcons) {
+                    appearance |= android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS;
+                }
+                if (darkNavigationIcons) {
+                    appearance |= android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                }
+                controller.setSystemBarsAppearance(appearance, appearanceMask);
+
                 int types = android.view.WindowInsets.Type.statusBars()
                         | android.view.WindowInsets.Type.navigationBars();
-                if (enabled) {
+                if (fullscreen) {
                     controller.hide(types);
                     controller.setSystemBarsBehavior(
                             android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -369,6 +418,10 @@ public final class MainActivity extends Activity
         if (pendingFileCallback != null) {
             pendingFileCallback.onReceiveValue(null);
             pendingFileCallback = null;
+        }
+        if (pageTransition != null) {
+            pageTransition.reset();
+            pageTransition = null;
         }
         if (refreshLayout != null) {
             refreshLayout.setOnRefreshListener(null);
