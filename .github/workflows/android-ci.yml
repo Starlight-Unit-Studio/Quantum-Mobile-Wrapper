@@ -28,6 +28,11 @@ jobs:
           gradle-version: '9.6.0'
 
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+
       - name: Install Android 16 SDK
         run: |
           yes | sdkmanager --licenses >/dev/null || true
