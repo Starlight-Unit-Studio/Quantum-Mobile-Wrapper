@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+Configurable native WebView loading indicators.
+
+- Preserves the current top loading bar as the default for existing apps.
+- Adds per-app modes for no indicator, top bar, bottom bar, centered spinner and fullscreen spinner.
+- Adds configurable indicator color, bar thickness, spinner size and fullscreen overlay dimming.
+- Loading UI remains separate from the mandatory STU production splash and follows the existing WebView navigation/progress callbacks.
+- Implementation remains compatible with the Android 6 / API 23 baseline.
+
 Dynamic image recovery through Quantum Asset Store.
 
 - Trusted image requests below `/assets/` that miss the native store are now warmed immediately in parallel while WebView keeps its ordinary live request path.
