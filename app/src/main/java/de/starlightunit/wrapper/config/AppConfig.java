@@ -12,6 +12,9 @@ public final class AppConfig {
     public static final boolean QUANTUM_ASSET_STORE_ENABLED = true;
     public static final boolean ASSET_STORE_PAGE_WARMUP_ENABLED = false;
     public static final long ASSET_STORE_PAGE_WARMUP_DELAY_MS = 2_000L;
+    public static final boolean NATIVE_ASSET_DOWNLOADER_ENABLED = false;
+    public static final String ASSET_MANIFEST_URL = "";
+    public static final String ASSET_DOWNLOADER_ROOTS = "/assets/portraits/";
     public static final String ASSET_STORE_TRUSTED_HOST = "game.starlight-unit.de";
     public static final String ASSET_STORE_PATH_PREFIX = "/assets/";
     public static final String ASSET_STORE_EXCLUDED_PATH_PREFIX = NATIVE_MEDIA_PATH_PREFIX;
