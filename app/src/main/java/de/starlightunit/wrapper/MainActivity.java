@@ -83,7 +83,7 @@ public final class MainActivity extends Activity
         webView.setWebViewClient(webViewClient);
         chromeClient = new GameWebChromeClient(fullscreenContainer, this, this);
         webView.setWebChromeClient(chromeClient);
-        webView.setDownloadListener(new AppDownloadListener(this));
+        webView.setDownloadListener(new AppDownloadListener(this, requestHeaders));
 
         retryButton.setOnClickListener(v -> {
             errorPanel.setVisibility(View.GONE);
