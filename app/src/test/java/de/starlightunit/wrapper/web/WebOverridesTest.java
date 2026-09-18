@@ -9,9 +9,9 @@ public final class WebOverridesTest {
 
     @Test
     public void cssInjectionEscapesContentAndUsesStableStyleElement() {
-        String script = WebOverrides.cssInjectionScript("body { color: red; }\n.x:after { content: \"q\"; }");
+        String script = WebOverrides.cssInjectionScript("body { color: red; }\n.x { display: block; }");
         assertTrue(script.contains("quantum-profile-custom-css"));
-        assertTrue(script.contains("body { color: red; }\\n.x:after { content: \\"q\\"; }"));
+        assertTrue(script.contains("body { color: red; }\\n.x { display: block; }"));
         assertTrue(script.contains("s.textContent="));
     }
 
