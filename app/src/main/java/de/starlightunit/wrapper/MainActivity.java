@@ -17,6 +17,8 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
 import java.util.Map;
 
 import de.starlightunit.wrapper.bridge.QuantumNativeMediaBridge;
@@ -43,6 +45,7 @@ public final class MainActivity extends Activity
 
     private WebView webView;
     private LoadingIndicatorController loadingIndicator;
+    private SwipeRefreshLayout refreshLayout;
     private View errorPanel;
     private GameWebChromeClient chromeClient;
     private GameWebViewClient webViewClient;
@@ -59,9 +62,10 @@ public final class MainActivity extends Activity
         super.onCreate(savedInstanceState);
         configureWindow();
         setContentView(R.layout.activity_main);
-        enterImmersiveMode();
+        applyConfiguredSystemUi(false);
 
         webView = findViewById(R.id.web_view);
+        refreshLayout = findViewById(R.id.refresh_container);
         ProgressBar horizontalProgress = findViewById(R.id.progress);
         FrameLayout loadingOverlay = findViewById(R.id.loading_overlay);
         ProgressBar loadingSpinner = findViewById(R.id.loading_spinner);
@@ -78,6 +82,15 @@ public final class MainActivity extends Activity
                 AppConfig.LOADING_SPINNER_SIZE_DP,
                 AppConfig.LOADING_OVERLAY_DIM_PERCENT
         );
+        refreshLayout.setEnabled(AppConfig.PULL_TO_REFRESH_ENABLED);
+        refreshLayout.setOnRefreshListener(() -> {
+            String currentUrl = webView == null ? null : webView.getUrl();
+            if (webView == null) {
+                refreshLayout.setRefreshing(false);
+                return;
+            }
+            loadTrustedUrl(currentUrl);
+        });
         ImageView introOverlay = findViewById(R.id.intro_overlay);
         Button retryButton = findViewById(R.id.retry_button);
 
@@ -138,22 +151,27 @@ public final class MainActivity extends Activity
         }
     }
 
-    private void enterImmersiveMode() {
+    private void applyConfiguredSystemUi(boolean forceFullscreen) {
+        boolean fullscreen = forceFullscreen || AppConfig.IMMERSIVE_FULLSCREEN_ENABLED;
         View decorView = getWindow().getDecorView();
 
         if (Build.VERSION.SDK_INT >= 30) {
-            Api30WindowHandler.enterImmersiveMode(decorView);
+            Api30WindowHandler.setImmersiveMode(decorView, fullscreen);
             return;
         }
 
-        decorView.setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-        );
+        if (fullscreen) {
+            decorView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            );
+        } else {
+            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        }
     }
 
     @Override
@@ -198,6 +216,7 @@ public final class MainActivity extends Activity
     @Override
     public void onPageReady() {
         loadingIndicator.hide();
+        refreshLayout.setRefreshing(false);
         if (!mainFrameFailed) {
             errorPanel.setVisibility(View.GONE);
         }
@@ -210,6 +229,7 @@ public final class MainActivity extends Activity
     public void onMainFrameError() {
         mainFrameFailed = true;
         loadingIndicator.hide();
+        refreshLayout.setRefreshing(false);
         errorPanel.setVisibility(View.VISIBLE);
     }
 
@@ -221,7 +241,7 @@ public final class MainActivity extends Activity
     @Override
     public void onFullscreenChanged(boolean fullscreen) {
         webView.setVisibility(fullscreen ? View.GONE : View.VISIBLE);
-        enterImmersiveMode();
+        applyConfiguredSystemUi(fullscreen);
     }
 
     @Override
@@ -252,7 +272,7 @@ public final class MainActivity extends Activity
         if (webView != null) {
             webView.onResume();
         }
-        enterImmersiveMode();
+        applyConfiguredSystemUi(false);
     }
 
     @Override
@@ -279,7 +299,7 @@ public final class MainActivity extends Activity
         }
 
         @android.annotation.TargetApi(30)
-        static void enterImmersiveMode(View decorView) {
+        static void setImmersiveMode(View decorView, boolean enabled) {
             // Android 16 can throw inside PhoneWindow.getInsetsController() when it is
             // queried before DecorView has been installed. Obtain the controller from
             // the actual decor view and defer the request until that view is ready.
@@ -288,13 +308,16 @@ public final class MainActivity extends Activity
                 if (controller == null) {
                     return;
                 }
-                controller.hide(
-                        android.view.WindowInsets.Type.statusBars()
-                                | android.view.WindowInsets.Type.navigationBars()
-                );
-                controller.setSystemBarsBehavior(
-                        android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                );
+                int types = android.view.WindowInsets.Type.statusBars()
+                        | android.view.WindowInsets.Type.navigationBars();
+                if (enabled) {
+                    controller.hide(types);
+                    controller.setSystemBarsBehavior(
+                            android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    );
+                } else {
+                    controller.show(types);
+                }
             });
         }
     }
@@ -325,6 +348,11 @@ public final class MainActivity extends Activity
         if (pendingFileCallback != null) {
             pendingFileCallback.onReceiveValue(null);
             pendingFileCallback = null;
+        }
+        if (refreshLayout != null) {
+            refreshLayout.setOnRefreshListener(null);
+            refreshLayout.setRefreshing(false);
+            refreshLayout = null;
         }
         if (webView != null) {
             webView.removeJavascriptInterface(AppConfig.NATIVE_MEDIA_BRIDGE_NAME);
