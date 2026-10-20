@@ -4,10 +4,13 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
+import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
@@ -42,14 +45,37 @@ public final class NativeNavigationController {
         final NativeNavigationConfig.Item item;
         final boolean iconAbove;
         final boolean reserveIconSlot;
+        final View selectionView;
 
         BoundItem(String resolvedUrl, TextView view, NativeNavigationConfig.Item item,
                   boolean iconAbove, boolean reserveIconSlot) {
+            this(resolvedUrl, view, item, iconAbove, reserveIconSlot, view);
+        }
+
+        BoundItem(String resolvedUrl, TextView view, NativeNavigationConfig.Item item,
+                  boolean iconAbove, boolean reserveIconSlot, View selectionView) {
             this.resolvedUrl = resolvedUrl;
             this.view = view;
             this.item = item;
             this.iconAbove = iconAbove;
             this.reserveIconSlot = reserveIconSlot;
+            this.selectionView = selectionView;
+        }
+    }
+
+    private static final class BoundGroup {
+        final NativeNavigationConfig.Item item;
+        final LinearLayout header;
+        final TextView arrow;
+        final LinearLayout children;
+        Boolean expanded;
+
+        BoundGroup(NativeNavigationConfig.Item item, LinearLayout header,
+                   TextView arrow, LinearLayout children) {
+            this.item = item;
+            this.header = header;
+            this.arrow = arrow;
+            this.children = children;
         }
     }
 
@@ -74,7 +100,9 @@ public final class NativeNavigationController {
     private final int foregroundColor;
     private final int accentColor;
     private final List<BoundItem> navigationBindings = new ArrayList<>();
+    private final List<BoundGroup> groupBindings = new ArrayList<>();
     private final NativeNavigationIcons icons;
+    private final NativeNavigationGroups groups;
     private TextView backAction;
     private TextView forwardAction;
 
@@ -115,6 +143,7 @@ public final class NativeNavigationController {
         this.host = host;
         this.startUrl = startUrl;
         this.config = NativeNavigationConfig.parse(title, itemsJson);
+        this.groups = new NativeNavigationGroups(config, startUrl);
         this.topEnabled = topEnabled;
         this.sidebarEnabled = sidebarEnabled;
         this.bottomEnabled = bottomEnabled;
@@ -131,6 +160,7 @@ public final class NativeNavigationController {
         contextualToolbar.removeAllViews();
         sidebarContent.removeAllViews();
         navigationBindings.clear();
+        groupBindings.clear();
 
         configureSurface(topBar);
         configureSurface(bottomTabs);
@@ -201,28 +231,123 @@ public final class NativeNavigationController {
         heading.setPadding(dp(12), dp(14), dp(12), dp(18));
         sidebarContent.addView(heading);
 
+        boolean reserveIconSlot = NativeNavigationGroups.hasIcons(config.tree);
+        addSidebarNodes(sidebarContent, config.tree, 0, reserveIconSlot);
         if (config.items.isEmpty()) {
-            addSidebarItem(new NativeNavigationConfig.Item("Home", startUrl), startUrl, false);
-            return;
+            addSidebarItem(sidebarContent, new NativeNavigationConfig.Item("Home", startUrl),
+                    startUrl, reserveIconSlot, 0);
         }
-        boolean reserveIconSlot = hasIcons(config.items.size());
-        for (NativeNavigationConfig.Item item : config.items) {
-            String resolved = NativeNavigationConfig.resolveTarget(startUrl, item.target);
-            if (!resolved.isEmpty()) {
-                addSidebarItem(item, resolved, reserveIconSlot);
+        updateGroupVisibility();
+    }
+
+    private void addSidebarNodes(LinearLayout parent, List<NativeNavigationConfig.Item> nodes,
+                                 int depth, boolean reserveIconSlot) {
+        for (NativeNavigationConfig.Item item : nodes) {
+            if (item.isGroup) {
+                addSidebarGroup(parent, item, depth, reserveIconSlot);
+            } else {
+                String resolved = NativeNavigationConfig.resolveTarget(startUrl, item.target);
+                if (!resolved.isEmpty()) addSidebarItem(parent, item, resolved, reserveIconSlot, depth);
             }
         }
     }
 
-    private void addSidebarItem(NativeNavigationConfig.Item configItem, String resolvedUrl,
-                                boolean reserveIconSlot) {
+    private void addSidebarGroup(LinearLayout parent, NativeNavigationConfig.Item configItem,
+                                int depth, boolean reserveIconSlot) {
+        LinearLayout container = new LinearLayout(context);
+        container.setOrientation(LinearLayout.VERTICAL);
+        parent.addView(container, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout header = new LinearLayout(context);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setMinimumHeight(dp(50));
+        header.setPadding(dp(14 + 12 * depth), dp(14), dp(14), dp(14));
+        header.setFocusable(true);
+        header.setClickable(true);
+        header.setTag("quantum-nav-group:" + configItem.id);
+        TextView label = new TextView(context);
+        label.setText(configItem.label);
+        label.setTextColor(foregroundColor);
+        label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        label.setGravity(Gravity.CENTER_VERTICAL);
+        label.setCompoundDrawablePadding(reserveIconSlot ? dp(12) : 0);
+        label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        header.addView(label, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        TextView arrow = new TextView(context);
+        arrow.setTextColor(foregroundColor);
+        arrow.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        arrow.setGravity(Gravity.CENTER);
+        arrow.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams arrowParams = new LinearLayout.LayoutParams(dp(22),
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        arrowParams.setMarginStart(dp(8));
+        header.addView(arrow, arrowParams);
+        container.addView(header, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout children = new LinearLayout(context);
+        children.setOrientation(LinearLayout.VERTICAL);
+        container.addView(children, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        BoundGroup binding = new BoundGroup(configItem, header, arrow, children);
+        groupBindings.add(binding);
+        navigationBindings.add(new BoundItem("", label, configItem, false, reserveIconSlot, header));
+        header.setOnClickListener(v -> changeGroup(binding, !groups.isExpanded(configItem.id)));
+        header.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(View hostView, AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(hostView, info);
+                info.setClassName("android.widget.Button");
+                info.addAction(groups.isExpanded(configItem.id)
+                        ? AccessibilityNodeInfo.ACTION_COLLAPSE : AccessibilityNodeInfo.ACTION_EXPAND);
+            }
+
+            @Override
+            public boolean performAccessibilityAction(View hostView, int action, Bundle arguments) {
+                if (action == AccessibilityNodeInfo.ACTION_EXPAND || action == AccessibilityNodeInfo.ACTION_COLLAPSE) {
+                    changeGroup(binding, action == AccessibilityNodeInfo.ACTION_EXPAND);
+                    return true;
+                }
+                return super.performAccessibilityAction(hostView, action, arguments);
+            }
+        });
+        addSidebarNodes(children, configItem.children, depth + 1, reserveIconSlot);
+    }
+
+    private void changeGroup(BoundGroup binding, boolean expanded) {
+        groups.setExpanded(binding.item.id, expanded);
+        updateGroupVisibility();
+        binding.header.announceForAccessibility(groupDescription(binding));
+    }
+
+    private String groupDescription(BoundGroup binding) {
+        return binding.item.label + (groups.isExpanded(binding.item.id) ? ", expanded group" : ", collapsed group");
+    }
+
+    private void updateGroupVisibility() {
+        for (BoundGroup binding : groupBindings) {
+            boolean expanded = groups.isExpanded(binding.item.id);
+            if (binding.expanded != null && binding.expanded == expanded) continue;
+            binding.expanded = expanded;
+            binding.children.setVisibility(expanded ? View.VISIBLE : View.GONE);
+            binding.arrow.setText(expanded ? "▾" : "▸");
+            binding.header.setContentDescription(groupDescription(binding));
+            binding.header.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
+        }
+    }
+
+    private void addSidebarItem(LinearLayout parent, NativeNavigationConfig.Item configItem,
+                               String resolvedUrl, boolean reserveIconSlot, int depth) {
         TextView item = new TextView(context);
         item.setText(configItem.label);
         item.setContentDescription(configItem.label);
         item.setTextColor(foregroundColor);
         item.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         item.setGravity(Gravity.CENTER_VERTICAL);
-        item.setPadding(dp(14), dp(14), dp(14), dp(14));
+        item.setPadding(dp(14 + 12 * depth), dp(14), dp(14), dp(14));
         item.setCompoundDrawablePadding(reserveIconSlot ? dp(12) : 0);
         item.setMinimumHeight(dp(50));
         item.setFocusable(true);
@@ -230,7 +355,7 @@ public final class NativeNavigationController {
             closeSidebar();
             host.navigate(resolvedUrl);
         });
-        sidebarContent.addView(item, new LinearLayout.LayoutParams(
+        parent.addView(item, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
@@ -362,10 +487,15 @@ public final class NativeNavigationController {
         if (currentUrl == null) {
             return;
         }
+        groups.navigate(currentUrl);
+        updateGroupVisibility();
         for (BoundItem binding : navigationBindings) {
-            boolean selected = sameLocation(binding.resolvedUrl, currentUrl);
+            boolean selected = binding.item.isGroup
+                    ? groups.isActive(binding.item, currentUrl)
+                    : NativeNavigationGroups.sameLocation(binding.resolvedUrl, currentUrl);
             int color = selected ? accentColor : foregroundColor;
             binding.view.setSelected(selected);
+            binding.selectionView.setSelected(selected);
             binding.view.setTextColor(color);
             binding.view.setTypeface(
                     Typeface.DEFAULT,
@@ -379,22 +509,14 @@ public final class NativeNavigationController {
                 binding.view.setCompoundDrawablesRelative(icon, null, null, null);
             }
         }
+        for (BoundGroup binding : groupBindings) {
+            binding.arrow.setTextColor(groups.isActive(binding.item, currentUrl) ? accentColor : foregroundColor);
+        }
     }
 
     private void setActionEnabled(TextView view, boolean enabled) {
         view.setEnabled(enabled);
         view.setAlpha(enabled ? 1f : 0.35f);
-    }
-
-    private static boolean sameLocation(String left, String right) {
-        if (left == null || right == null) {
-            return false;
-        }
-        int leftHash = left.indexOf('#');
-        int rightHash = right.indexOf('#');
-        String a = leftHash >= 0 ? left.substring(0, leftHash) : left;
-        String b = rightHash >= 0 ? right.substring(0, rightHash) : right;
-        return a.equals(b);
     }
 
     public boolean handleBackPressed() {
@@ -425,6 +547,7 @@ public final class NativeNavigationController {
         contextualToolbar.removeAllViews();
         sidebarContent.removeAllViews();
         navigationBindings.clear();
+        groupBindings.clear();
         icons.clear();
         backAction = null;
         forwardAction = null;

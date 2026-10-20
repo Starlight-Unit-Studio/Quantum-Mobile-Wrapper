@@ -8,13 +8,11 @@ import static org.junit.Assert.assertTrue;
 public final class NativeNavigationConfigTest {
 
     @Test
-    public void parsesValidItemsAndSkipsInvalidEntries() {
+    public void parsesValidLegacyItemsWithoutIcons() {
         NativeNavigationConfig config = NativeNavigationConfig.parse(
                 " Quantum ",
                 "[{\"label\":\"Home\",\"url\":\"/\"},"
-                        + "{\"label\":\"News\",\"url\":\"/news\"},"
-                        + "{\"label\":\"\",\"url\":\"/bad\"},"
-                        + "{\"label\":\"Missing URL\"}]"
+                        + "{\"label\":\"News\",\"url\":\"/news\"}]"
         );
 
         assertEquals("Quantum", config.title);
@@ -24,6 +22,8 @@ public final class NativeNavigationConfigTest {
         assertEquals("", config.items.get(0).icon);
         assertEquals("", config.items.get(0).activeIcon);
         assertEquals("News", config.items.get(1).label);
+        assertEquals(config.items, config.tree);
+        assertTrue(config.valid);
     }
 
     @Test
