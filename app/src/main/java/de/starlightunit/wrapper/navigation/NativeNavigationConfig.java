@@ -15,10 +15,18 @@ public final class NativeNavigationConfig {
     public static final class Item {
         public final String label;
         public final String target;
+        public final String icon;
+        public final String activeIcon;
 
         Item(String label, String target) {
+            this(label, target, "", "");
+        }
+
+        Item(String label, String target, String icon, String activeIcon) {
             this.label = label;
             this.target = target;
+            this.icon = NativeNavigationIconPolicy.normalize(icon);
+            this.activeIcon = NativeNavigationIconPolicy.normalize(activeIcon);
         }
     }
 
@@ -48,7 +56,9 @@ public final class NativeNavigationConfig {
                 if (label.length() > 40) {
                     label = label.substring(0, 40);
                 }
-                items.add(new Item(label, target));
+                String icon = raw.opt("icon") instanceof String ? raw.optString("icon", "") : "";
+                String activeIcon = raw.opt("active_icon") instanceof String ? raw.optString("active_icon", "") : "";
+                items.add(new Item(label, target, icon, activeIcon));
             }
         } catch (Exception ignored) {
             items.clear();

@@ -12,14 +12,17 @@ The first app target is:
 
 Package: `de.starlightunit.game`
 
-Version: `0.1.0-beta9`
+Version: `0.1.0-beta10`
 
 Beta8 fixed the Android 16 cold-start crash identified with the temporary beta7/beta8 diagnostic builds. The root cause was an immersive-mode request before the Activity `DecorView` existed. `MainActivity` now enters immersive mode only after `setContentView()` and obtains modern window-insets APIs from a version-isolated compatibility path. The fixed full wrapper was confirmed on a Samsung Galaxy S25+ running Android 16 in normal phone mode and Samsung DeX.
 
 Beta9 extends the Android compatibility baseline down to Android 6.0 / API 23 without lowering the modern compile or target SDK. CI now runs Android lint before unit tests and APK assembly so accidental calls to unavailable platform APIs are caught before merge.
 
+Beta10 adds native navigation icons: 20 built-in vector symbols, bundled custom PNGs and independent selected-state icons for Sidebar and Bottom Tabs. The Android 6 / API 23 baseline remains in place.
+
 ## Included in the current beta shell
 
+- Native Sidebar and Bottom Tab icons, including custom PNG assets and active-state variants
 - Secure HTTPS-only WebView configuration
 - JavaScript and DOM storage for the existing game client
 - Cookies and third-party cookies for web compatibility
@@ -66,6 +69,8 @@ Runtime product values are centralized in:
 `app/src/main/java/de/starlightunit/wrapper/config/AppConfig.java`
 
 This keeps the shell reusable without scattering URLs and host rules through Activity code.
+
+Native navigation items and icon configuration are documented in `docs/NATIVE_NAVIGATION_ICONS.md`.
 
 Quantum NMP is documented in `docs/QUANTUM_NMP.md`. Its bridge is exposed to trusted game pages as `window.QuantumNMP`.
 

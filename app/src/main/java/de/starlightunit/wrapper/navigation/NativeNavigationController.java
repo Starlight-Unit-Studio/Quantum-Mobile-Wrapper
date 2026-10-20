@@ -3,6 +3,8 @@ package de.starlightunit.wrapper.navigation;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
+import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -37,10 +39,17 @@ public final class NativeNavigationController {
     private static final class BoundItem {
         final String resolvedUrl;
         final TextView view;
+        final NativeNavigationConfig.Item item;
+        final boolean iconAbove;
+        final boolean reserveIconSlot;
 
-        BoundItem(String resolvedUrl, TextView view) {
+        BoundItem(String resolvedUrl, TextView view, NativeNavigationConfig.Item item,
+                  boolean iconAbove, boolean reserveIconSlot) {
             this.resolvedUrl = resolvedUrl;
             this.view = view;
+            this.item = item;
+            this.iconAbove = iconAbove;
+            this.reserveIconSlot = reserveIconSlot;
         }
     }
 
@@ -64,7 +73,8 @@ public final class NativeNavigationController {
     private final int backgroundColor;
     private final int foregroundColor;
     private final int accentColor;
-    private final List<BoundItem> bottomBindings = new ArrayList<>();
+    private final List<BoundItem> navigationBindings = new ArrayList<>();
+    private final NativeNavigationIcons icons;
     private TextView backAction;
     private TextView forwardAction;
 
@@ -92,6 +102,7 @@ public final class NativeNavigationController {
             String accentColor
     ) {
         this.context = context;
+        this.icons = new NativeNavigationIcons(context);
         this.content = content;
         this.topBar = topBar;
         this.sidebarLauncher = sidebarLauncher;
@@ -119,7 +130,7 @@ public final class NativeNavigationController {
         bottomTabsContent.removeAllViews();
         contextualToolbar.removeAllViews();
         sidebarContent.removeAllViews();
-        bottomBindings.clear();
+        navigationBindings.clear();
 
         configureSurface(topBar);
         configureSurface(bottomTabs);
@@ -139,6 +150,7 @@ public final class NativeNavigationController {
         sidebarLauncher.setOnClickListener(v -> openSidebar());
         sidebarLauncher.setTextColor(foregroundColor);
         sidebarLauncher.setBackgroundColor(backgroundColor);
+        updateHistoryState(startUrl);
     }
 
     private void buildTopBar() {
@@ -190,24 +202,30 @@ public final class NativeNavigationController {
         sidebarContent.addView(heading);
 
         if (config.items.isEmpty()) {
-            addSidebarItem("Home", startUrl);
+            addSidebarItem(new NativeNavigationConfig.Item("Home", startUrl), startUrl, false);
             return;
         }
+        boolean reserveIconSlot = hasIcons(config.items.size());
         for (NativeNavigationConfig.Item item : config.items) {
             String resolved = NativeNavigationConfig.resolveTarget(startUrl, item.target);
             if (!resolved.isEmpty()) {
-                addSidebarItem(item.label, resolved);
+                addSidebarItem(item, resolved, reserveIconSlot);
             }
         }
     }
 
-    private void addSidebarItem(String label, String resolvedUrl) {
+    private void addSidebarItem(NativeNavigationConfig.Item configItem, String resolvedUrl,
+                                boolean reserveIconSlot) {
         TextView item = new TextView(context);
-        item.setText(label);
+        item.setText(configItem.label);
+        item.setContentDescription(configItem.label);
         item.setTextColor(foregroundColor);
         item.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         item.setGravity(Gravity.CENTER_VERTICAL);
         item.setPadding(dp(14), dp(14), dp(14), dp(14));
+        item.setCompoundDrawablePadding(reserveIconSlot ? dp(12) : 0);
+        item.setMinimumHeight(dp(50));
+        item.setFocusable(true);
         item.setOnClickListener(v -> {
             closeSidebar();
             host.navigate(resolvedUrl);
@@ -216,6 +234,7 @@ public final class NativeNavigationController {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
+        navigationBindings.add(new BoundItem(resolvedUrl, item, configItem, false, reserveIconSlot));
     }
 
     private void buildBottomTabs() {
@@ -225,35 +244,51 @@ public final class NativeNavigationController {
         }
 
         if (config.items.isEmpty()) {
-            addBottomTab("Home", startUrl);
+            addBottomTab(new NativeNavigationConfig.Item("Home", startUrl), startUrl, false);
             return;
         }
 
         int count = Math.min(5, config.items.size());
+        boolean reserveIconSlot = hasIcons(count);
         for (int i = 0; i < count; i++) {
             NativeNavigationConfig.Item item = config.items.get(i);
             String resolved = NativeNavigationConfig.resolveTarget(startUrl, item.target);
             if (!resolved.isEmpty()) {
-                addBottomTab(item.label, resolved);
+                addBottomTab(item, resolved, reserveIconSlot);
             }
         }
     }
 
-    private void addBottomTab(String label, String resolvedUrl) {
+    private void addBottomTab(NativeNavigationConfig.Item configItem, String resolvedUrl,
+                              boolean reserveIconSlot) {
         TextView tab = new TextView(context);
-        tab.setText(label);
+        tab.setText(configItem.label);
+        tab.setContentDescription(configItem.label);
         tab.setTextColor(foregroundColor);
         tab.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         tab.setGravity(Gravity.CENTER);
         tab.setSingleLine(true);
-        tab.setPadding(dp(14), 0, dp(14), 0);
+        tab.setEllipsize(TextUtils.TruncateAt.END);
+        tab.setCompoundDrawablePadding(reserveIconSlot ? dp(3) : 0);
+        tab.setPadding(dp(reserveIconSlot ? 8 : 14), 0, dp(reserveIconSlot ? 8 : 14), 0);
+        tab.setFocusable(true);
         tab.setOnClickListener(v -> host.navigate(resolvedUrl));
         bottomTabsContent.addView(tab, new LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 1f
         ));
-        bottomBindings.add(new BoundItem(resolvedUrl, tab));
+        navigationBindings.add(new BoundItem(resolvedUrl, tab, configItem, true, reserveIconSlot));
+    }
+
+    private boolean hasIcons(int count) {
+        for (int i = 0; i < count; i++) {
+            NativeNavigationConfig.Item item = config.items.get(i);
+            if (NativeNavigationIconPolicy.hasIcon(item.icon, item.activeIcon)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void buildContextualToolbar() {
@@ -327,13 +362,22 @@ public final class NativeNavigationController {
         if (currentUrl == null) {
             return;
         }
-        for (BoundItem binding : bottomBindings) {
+        for (BoundItem binding : navigationBindings) {
             boolean selected = sameLocation(binding.resolvedUrl, currentUrl);
-            binding.view.setTextColor(selected ? accentColor : foregroundColor);
+            int color = selected ? accentColor : foregroundColor;
+            binding.view.setSelected(selected);
+            binding.view.setTextColor(color);
             binding.view.setTypeface(
                     Typeface.DEFAULT,
                     selected ? Typeface.BOLD : Typeface.NORMAL
             );
+            Drawable icon = icons.forState(binding.item.icon, binding.item.activeIcon, selected,
+                    color, dp(22), binding.reserveIconSlot);
+            if (binding.iconAbove) {
+                binding.view.setCompoundDrawablesRelative(null, icon, null, null);
+            } else {
+                binding.view.setCompoundDrawablesRelative(icon, null, null, null);
+            }
         }
     }
 
@@ -380,7 +424,8 @@ public final class NativeNavigationController {
         bottomTabsContent.removeAllViews();
         contextualToolbar.removeAllViews();
         sidebarContent.removeAllViews();
-        bottomBindings.clear();
+        navigationBindings.clear();
+        icons.clear();
         backAction = null;
         forwardAction = null;
     }
