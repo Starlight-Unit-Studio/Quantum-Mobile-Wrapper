@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0-beta11
+
+Nested and collapsible native navigation groups.
+
+- Adds Sidebar group headers with explicit IDs, configurable initial collapse and up to three group ancestors.
+- Keeps existing flat link profiles valid and exposes the first five depth-first link destinations in Bottom Tabs.
+- Supports normal and active group icons; a group is selected whenever one of its descendant destinations is selected.
+- Opens active ancestors at startup and when the current URL changes, while preserving manual expansion choices on same-URL updates.
+- Adds accessible expand/collapse actions, state descriptions and announcements to each group header.
+- Uses 50 dp minimum targets and 12 dp indentation per ancestor to retain space in the 280 dp Sidebar.
+- Bounds menus to 12 links, 12 groups and 24 total nodes; rejects malformed trees atomically before rendering any partial destinations.
+- Retains empty group headers and provides a Home fallback when the entire menu has no link destinations.
+- Adds pure Java tests for tree parsing, limits, ID validation, selected descendants and expansion state.
+- Keeps Android 6 / API 23 compatibility and uses no new runtime dependency.
+- Increases Android versionCode to 11.
+
 ## 0.1.0-beta10
 
 Native navigation icons.

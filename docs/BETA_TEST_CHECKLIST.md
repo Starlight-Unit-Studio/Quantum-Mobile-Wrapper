@@ -30,6 +30,22 @@ Run this checklist before replacing the current Web2App Pro build.
 - Invalid or uncompiled image references do not trigger network requests or crash navigation
 - Repeat the mixed-menu checks on Android 6 / API 23 and a recent Android device
 
+## Native navigation groups
+
+- A flat legacy menu keeps its original Sidebar order and first five Bottom Tabs
+- Groups toggle without navigating or closing the Sidebar; nested child visibility follows every ancestor
+- Up to three group ancestors fit the 280 dp Sidebar with long labels, mixed icons and increased system font size
+- Group headers expose one focus target with the label, expanded/collapsed state and the matching accessibility action
+- TalkBack announces manual expansion/collapse and skips hidden descendants
+- A selected descendant highlights all ancestor groups and switches their active icons
+- Startup and navigation to a different current URL open the selected destination's ancestors
+- Manually collapsing an active group survives repeated progress/history callbacks for the same URL and reopening the Sidebar
+- Bottom Tabs use only the first five links in depth-first order, including links inside collapsed groups
+- Empty groups remain toggleable, with a Home fallback when the whole menu has no destinations
+- Activity recreation reapplies configured collapse defaults and opens the current destination's ancestors
+- Malformed, duplicate-ID, excessive-depth or excessive-count trees show the Home fallback without a partial menu or crash
+- Repeat the group checks on Android 6 / API 23 and a recent Android device
+
 ## Game rendering
 
 - Game fills the screen without unwanted browser chrome
@@ -79,7 +95,7 @@ Background notification, lock-screen and guaranteed screen-off/service-owned pla
 
 ## Device matrix
 
-Minimum smoke matrix for beta10:
+Minimum smoke matrix for beta11:
 
 - Android 6.0 / API 23 emulator or device: cold start, login page, navigation, file picker, one download, one campaign OGG, one Asset Store revisit
 - Android 8-10 device or emulator: legacy immersive UI path

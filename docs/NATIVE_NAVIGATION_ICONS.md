@@ -1,6 +1,6 @@
 # Native navigation icons
 
-Available in Quantum Mobile Wrapper `0.1.0-beta10`, with Android 6 / API 23 as the minimum runtime.
+Available since Quantum Mobile Wrapper `0.1.0-beta10`, with Android 6 / API 23 as the minimum runtime. Beta11 extends the same icon fields to Sidebar groups; see `NATIVE_NAVIGATION_GROUPS.md`.
 
 Sidebar and Bottom Tabs share the ordered `NATIVE_NAVIGATION_ITEMS_JSON` array. Existing entries with only `label` and `url` remain valid. Each entry may additionally contain `icon` and `active_icon` string fields.
 
@@ -41,7 +41,7 @@ The selection rule compares the current WebView URL with the resolved menu targe
 
 Sidebar icons appear beside their labels. Tab icons appear above their labels. A menu surface reserves equal icon slots whenever any of its displayed entries has an icon, including an active-only icon. This keeps labels aligned when iconed and iconless entries are mixed. Profiles without any icons keep the existing text-only layout.
 
-There are still at most 12 menu entries, with the first five available as Bottom Tabs. Navigation continues through the existing trusted-domain loader. The fixed Top Bar and Contextual Toolbar actions do not gain per-item icon settings in this release.
+Beta11 supports at most 12 link destinations and 12 groups, with the first five depth-first destinations available as Bottom Tabs. Group headers use their active icon whenever any descendant destination is selected. Sidebar reserves icon slots across the whole tree, including currently collapsed descendants. Navigation continues through the existing trusted-domain loader. The fixed Top Bar and Contextual Toolbar actions do not gain per-item icon settings.
 
 ## Local verification
 
