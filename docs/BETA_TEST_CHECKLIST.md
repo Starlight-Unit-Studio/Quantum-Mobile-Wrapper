@@ -19,6 +19,17 @@ Run this checklist before replacing the current Web2App Pro build.
 - Back exits HTML fullscreen before navigating away
 - Unsupported custom schemes do not load inside the WebView
 
+## Native navigation icons
+
+- Existing iconless profiles keep the text-only Sidebar and Bottom Tab layout
+- Built-in icons use foreground color when inactive and accent color when selected
+- A distinct active icon appears in both Sidebar and Bottom Tabs after menu navigation and Back/Forward
+- Mixed iconed and iconless entries keep aligned labels; long tab labels truncate without hiding their accessibility name
+- Custom PNGs preserve their colors, transparency and aspect ratio inside the icon slot
+- A missing active PNG falls back to the normal icon; missing icons leave usable labels and actions
+- Invalid or uncompiled image references do not trigger network requests or crash navigation
+- Repeat the mixed-menu checks on Android 6 / API 23 and a recent Android device
+
 ## Game rendering
 
 - Game fills the screen without unwanted browser chrome
@@ -68,7 +79,7 @@ Background notification, lock-screen and guaranteed screen-off/service-owned pla
 
 ## Device matrix
 
-Minimum smoke matrix for beta9:
+Minimum smoke matrix for beta10:
 
 - Android 6.0 / API 23 emulator or device: cold start, login page, navigation, file picker, one download, one campaign OGG, one Asset Store revisit
 - Android 8-10 device or emulator: legacy immersive UI path

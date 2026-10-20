@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-beta10
+
+Native navigation icons.
+
+- Adds 20 original vector icons shared with the Quantum Builder catalogue.
+- Adds optional normal and active icons to Sidebar and Bottom Tab menu entries.
+- Supports custom PNG assets bundled by Builder, limited to 64 KiB and 256 pixels on each side.
+- Applies foreground/accent tint to built-ins and preserves the original colors and aspect ratio of custom images.
+- Updates the selected state in Sidebar and Bottom Tabs with WebView navigation.
+- Keeps icon slots aligned in mixed menus and retains text-only layout for existing iconless profiles.
+- Rejects remote image URLs, raw data URLs and asset paths outside the generated icon namespace.
+- Falls back to the normal icon when a selected asset is unavailable, while preserving the menu label and action.
+- Keeps Android 6 / API 23 compatibility; no new runtime dependency is required.
+
+Previously unreleased runtime features included in beta10:
 
 Custom splash replacement and post-load STU attribution.
 

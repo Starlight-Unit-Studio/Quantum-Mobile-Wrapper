@@ -4,6 +4,10 @@ The wrapper stays intentionally small and separates policy from Android UI plumb
 
 - `config/AppConfig`: product URL, trusted domains, native cache scopes and compatibility toggles
 - `navigation/NavigationPolicy`: pure Java URL trust decision, unit testable without Android
+- `navigation/NativeNavigationConfig`: ordered menu labels, targets and optional normal/active icon references
+- `navigation/NativeNavigationIconPolicy`: pure Java catalogue and strict compiled-asset namespace validation
+- `navigation/NativeNavigationIcons`: tinted vector loading and bounded, aspect-preserving bundled PNG loading
+- `navigation/NativeNavigationController`: native bars and Sidebar, shared URL selection state and accessible icon/label views
 - `web/WebViewConfigurator`: security and browser capability configuration
 - `web/GameWebViewClient`: navigation, TLS, load error handling and cache-hit interception
 - `web/QuantumAssetWarmup`: discovers static resources already used by a trusted page and schedules native warm-up
@@ -16,6 +20,12 @@ The wrapper stays intentionally small and separates policy from Android UI plumb
 - `media/QuantumNativeMediaPlayer`: framework `MediaPlayer` playback, soundtrack state and persisted music settings
 - `media/QuantumMediaMetadata`: pure-Java title helper retained for future native media surfaces
 - `MainActivity`: lifecycle and view orchestration only
+
+## Navigation icons
+
+Builder serializes normal and active icon settings with the menu item. Built-in identifiers refer to packaged original vector resources. Custom PNGs are compiled into content-addressed files under `assets/quantum_nav_icons/`, leaving only short asset references in `AppConfig`. The runtime never fetches navigation images over the network. Its per-controller cache is bounded by the existing menu limit of 12 entries with at most two icon assets per entry, each constrained to 64 KiB and 256 by 256 pixels before decoding.
+
+Both Sidebar and Bottom Tabs use the same current-URL selection rule. The icon loader falls back to the normal icon if the selected variant cannot be decoded, and the label/action survives any icon failure. Icon slots are reserved per surface when needed, while legacy iconless profiles retain their text-only layout. See `docs/NATIVE_NAVIGATION_ICONS.md` for the profile contract.
 
 ## Startup lifecycle
 
