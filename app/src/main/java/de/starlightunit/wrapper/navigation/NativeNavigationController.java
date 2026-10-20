@@ -90,19 +90,21 @@ public final class NativeNavigationController {
     private final ScrollView sidebarPanel;
     private final LinearLayout sidebarContent;
     private final Host host;
-    private final NativeNavigationConfig config;
+    private NativeNavigationConfig config;
+    private NativeNavigationConfig tabsConfig;
+    private final NativeNavigationMenus.State menuState;
     private final String startUrl;
-    private final boolean topEnabled;
-    private final boolean sidebarEnabled;
-    private final boolean bottomEnabled;
-    private final boolean contextualEnabled;
+    private boolean topEnabled;
+    private boolean sidebarEnabled;
+    private boolean bottomEnabled;
+    private boolean contextualEnabled;
     private final int backgroundColor;
     private final int foregroundColor;
     private final int accentColor;
     private final List<BoundItem> navigationBindings = new ArrayList<>();
     private final List<BoundGroup> groupBindings = new ArrayList<>();
     private final NativeNavigationIcons icons;
-    private final NativeNavigationGroups groups;
+    private NativeNavigationGroups groups;
     private TextView backAction;
     private TextView forwardAction;
 
@@ -121,6 +123,8 @@ public final class NativeNavigationController {
             String startUrl,
             String title,
             String itemsJson,
+            String profileJson,
+            String trustedDomain,
             boolean topEnabled,
             boolean sidebarEnabled,
             boolean bottomEnabled,
@@ -142,16 +146,26 @@ public final class NativeNavigationController {
         this.sidebarContent = sidebarContent;
         this.host = host;
         this.startUrl = startUrl;
-        this.config = NativeNavigationConfig.parse(title, itemsJson);
-        this.groups = new NativeNavigationGroups(config, startUrl);
-        this.topEnabled = topEnabled;
-        this.sidebarEnabled = sidebarEnabled;
-        this.bottomEnabled = bottomEnabled;
-        this.contextualEnabled = contextualEnabled;
+        this.menuState = new NativeNavigationMenus.State(
+                NativeNavigationMenus.parse(title, itemsJson, profileJson, trustedDomain),
+                startUrl, topEnabled, sidebarEnabled, bottomEnabled, contextualEnabled);
+        applySelection();
         this.backgroundColor = SystemBarStyle.parseRgb(backgroundColor, Color.rgb(2, 6, 17));
         this.foregroundColor = SystemBarStyle.parseRgb(foregroundColor, Color.WHITE);
         this.accentColor = SystemBarStyle.parseRgb(accentColor, Color.rgb(111, 199, 255));
         bind();
+        updateHistoryState(startUrl);
+    }
+
+    private void applySelection() {
+        NativeNavigationMenus.Selection selection = menuState.selection();
+        config = selection.sidebar;
+        tabsConfig = selection.tabs;
+        groups = menuState.sidebarGroups();
+        topEnabled = selection.topEnabled;
+        sidebarEnabled = selection.sidebarEnabled;
+        bottomEnabled = selection.bottomEnabled;
+        contextualEnabled = selection.contextualEnabled;
     }
 
     private void bind() {
@@ -161,6 +175,8 @@ public final class NativeNavigationController {
         sidebarContent.removeAllViews();
         navigationBindings.clear();
         groupBindings.clear();
+        backAction = null;
+        forwardAction = null;
 
         configureSurface(topBar);
         configureSurface(bottomTabs);
@@ -180,7 +196,6 @@ public final class NativeNavigationController {
         sidebarLauncher.setOnClickListener(v -> openSidebar());
         sidebarLauncher.setTextColor(foregroundColor);
         sidebarLauncher.setBackgroundColor(backgroundColor);
-        updateHistoryState(startUrl);
     }
 
     private void buildTopBar() {
@@ -368,15 +383,15 @@ public final class NativeNavigationController {
             return;
         }
 
-        if (config.items.isEmpty()) {
+        if (tabsConfig.items.isEmpty()) {
             addBottomTab(new NativeNavigationConfig.Item("Home", startUrl), startUrl, false);
             return;
         }
 
-        int count = Math.min(5, config.items.size());
+        int count = Math.min(5, tabsConfig.items.size());
         boolean reserveIconSlot = hasIcons(count);
         for (int i = 0; i < count; i++) {
-            NativeNavigationConfig.Item item = config.items.get(i);
+            NativeNavigationConfig.Item item = tabsConfig.items.get(i);
             String resolved = NativeNavigationConfig.resolveTarget(startUrl, item.target);
             if (!resolved.isEmpty()) {
                 addBottomTab(item, resolved, reserveIconSlot);
@@ -408,7 +423,7 @@ public final class NativeNavigationController {
 
     private boolean hasIcons(int count) {
         for (int i = 0; i < count; i++) {
-            NativeNavigationConfig.Item item = config.items.get(i);
+            NativeNavigationConfig.Item item = tabsConfig.items.get(i);
             if (NativeNavigationIconPolicy.hasIcon(item.icon, item.activeIcon)) {
                 return true;
             }
@@ -476,7 +491,23 @@ public final class NativeNavigationController {
         content.setLayoutParams(params);
     }
 
+    public boolean isBottomTabsVisible() {
+        return bottomEnabled;
+    }
+
+    public boolean isContextualToolbarVisible() {
+        return contextualEnabled;
+    }
+
     public void updateHistoryState(String currentUrl) {
+        if (currentUrl != null) {
+            String previousSidebarMenu = menuState.selection().sidebarMenu;
+            if (menuState.update(currentUrl)) {
+                if (!previousSidebarMenu.equals(menuState.selection().sidebarMenu)) closeSidebar();
+                applySelection();
+                bind();
+            }
+        }
         if (backAction != null) {
             setActionEnabled(backAction, host.canGoBack());
         }
@@ -487,7 +518,6 @@ public final class NativeNavigationController {
         if (currentUrl == null) {
             return;
         }
-        groups.navigate(currentUrl);
         updateGroupVisibility();
         for (BoundItem binding : navigationBindings) {
             boolean selected = binding.item.isGroup

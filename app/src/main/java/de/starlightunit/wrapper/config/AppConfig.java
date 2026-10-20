@@ -3,7 +3,7 @@ package de.starlightunit.wrapper.config;
 public final class AppConfig {
     public static final String START_URL = "https://game.starlight-unit.de/index_01.html";
     public static final String TRUSTED_DOMAIN = "starlight-unit.de";
-    public static final String VERSION_NAME = "0.1.0-beta11";
+    public static final String VERSION_NAME = "0.1.0-beta12";
     public static final String USER_AGENT_SUFFIX = " StarlightUnitAndroid/" + VERSION_NAME;
 
     public static final String NATIVE_MEDIA_BRIDGE_NAME = "QuantumNMP";
@@ -36,6 +36,7 @@ public final class AppConfig {
 
     public static final String NATIVE_NAVIGATION_TITLE = "Starlight Unit";
     public static final String NATIVE_NAVIGATION_ITEMS_JSON = "[]";
+    public static final String NATIVE_NAVIGATION_PROFILE_JSON = "{}";
     public static final String NATIVE_NAVIGATION_BACKGROUND_COLOR = "#020611";
     public static final String NATIVE_NAVIGATION_FOREGROUND_COLOR = "#ffffff";
     public static final String NATIVE_NAVIGATION_ACCENT_COLOR = "#6fc7ff";

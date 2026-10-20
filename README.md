@@ -12,13 +12,15 @@ The first app target is:
 
 Package: `de.starlightunit.game`
 
-Version: `0.1.0-beta11`
+Version: `0.1.0-beta12`
 
 Beta8 fixed the Android 16 cold-start crash identified with the temporary beta7/beta8 diagnostic builds. The root cause was an immersive-mode request before the Activity `DecorView` existed. `MainActivity` now enters immersive mode only after `setContentView()` and obtains modern window-insets APIs from a version-isolated compatibility path. The fixed full wrapper was confirmed on a Samsung Galaxy S25+ running Android 16 in normal phone mode and Samsung DeX.
 
 Beta9 extends the Android compatibility baseline down to Android 6.0 / API 23 without lowering the modern compile or target SDK. CI now runs Android lint before unit tests and APK assembly so accidental calls to unavailable platform APIs are caught before merge.
 
 Beta10 adds native navigation icons: 20 built-in vector symbols, bundled custom PNGs and independent selected-state icons for Sidebar and Bottom Tabs. The Android 6 / API 23 baseline remains in place.
+
+Beta12 adds independent Sidebar/Bottom Tabs menus and ordered URL rules for menu selection and all four surfaces' visibility. Presentation follows page and reported WebView history changes, preserves the current page and keeps expansion state separate for every menu. See `docs/NATIVE_NAVIGATION_MENUS.md`.
 
 Beta11 adds collapsible Sidebar groups with up to three nested levels. Groups support normal and active icons, open to reveal the current destination on navigation, and retain manual expansion choices while the current URL stays the same. Bottom Tabs use the first five destinations in depth-first menu order.
 

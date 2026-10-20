@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.1.0-beta12
+
+Independent Sidebar/Bottom Tabs menus and URL-based presentation.
+
+- Adds a bounded menu catalog, independent defaults and up to sixteen ordered
+  exact/prefix path rules with optional exact trusted host filters.
+- Applies the first matching rule as a whole; omitted values use defaults and
+  visibility can show or hide any of the four navigation surfaces.
+- Keeps the current WebView page and history when selections/layout change;
+  Sidebar and Tabs independently retain their tree/first-five/Home behavior.
+- Scopes group expansion to menu identity and observes navigation for inactive
+  menus so returning to a destination reveals its active ancestors.
+- Updates dynamic WebView/toolbar insets and Sidebar launcher state. Hiding or
+  changing the Sidebar menu closes its drawer; tabs-only changes preserve it.
+- Forwards page-start, visited-history and current finished-page URLs to the
+  presentation controller. Existing trusted loading and link routing stay intact.
+- Makes the existing attribution footer's inset follow currently visible bottom
+  bars, preserving its completed timing and lifecycle.
+- Rejects malformed catalog/rule JSON atomically, retaining the valid Standard
+  menu and default visibility. Keeps API23 compatibility without new dependencies.
+- Adds parser/matcher/selection/state tests and local production-source compilation.
+  APK/device/WebView rendering acceptance remains open in NATIVE_NAVIGATION_MENUS.md.
+- Increases Android versionCode to 12. No GitHub Actions validation is used.
+
 ## 0.1.0-beta11
 
 Nested and collapsible native navigation groups.

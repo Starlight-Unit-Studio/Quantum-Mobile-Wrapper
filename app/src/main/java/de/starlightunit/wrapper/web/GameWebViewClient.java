@@ -25,6 +25,7 @@ public final class GameWebViewClient extends WebViewClient {
     public interface Callbacks {
         void onPageLoading();
         void onPageReady();
+        void onNavigationUrlChanged(String url);
         void onMainFrameError();
     }
 
@@ -75,7 +76,13 @@ public final class GameWebViewClient extends WebViewClient {
 
     @Override
     public void onPageStarted(WebView view, String url, Bitmap favicon) {
+        callbacks.onNavigationUrlChanged(url);
         callbacks.onPageLoading();
+    }
+
+    @Override
+    public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
+        callbacks.onNavigationUrlChanged(url);
     }
 
     @Override
@@ -94,6 +101,9 @@ public final class GameWebViewClient extends WebViewClient {
                 );
             }
         }
+        // Finished callbacks can arrive for an earlier load after a redirect.
+        // Presentation follows the WebView's current URL, not that stale URL.
+        callbacks.onNavigationUrlChanged(view.getUrl());
         callbacks.onPageReady();
     }
 

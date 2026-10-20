@@ -6,6 +6,7 @@ The wrapper stays intentionally small and separates policy from Android UI plumb
 - `navigation/NavigationPolicy`: pure Java URL trust decision, unit testable without Android
 - `navigation/NativeNavigationConfig`: bounded menu tree and depth-first destination list with optional normal/active icons
 - `navigation/NativeNavigationGroups`: pure Java group expansion state and active-descendant policy
+- `navigation/NativeNavigationMenus`: bounded catalog, ordered raw-path/host rules, independent selections and per-menu group state
 - `navigation/NativeNavigationIconPolicy`: pure Java catalogue and strict compiled-asset namespace validation
 - `navigation/NativeNavigationIcons`: tinted vector loading and bounded, aspect-preserving bundled PNG loading
 - `navigation/NativeNavigationController`: native bars and Sidebar, shared URL selection state and accessible icon/label views
@@ -21,6 +22,10 @@ The wrapper stays intentionally small and separates policy from Android UI plumb
 - `media/QuantumNativeMediaPlayer`: framework `MediaPlayer` playback, soundtrack state and persisted music settings
 - `media/QuantumMediaMetadata`: pure-Java title helper retained for future native media surfaces
 - `MainActivity`: lifecycle and view orchestration only
+
+## Navigation menus and URL rules
+
+The Standard tree remains in `NATIVE_NAVIGATION_ITEMS_JSON`; `NATIVE_NAVIGATION_PROFILE_JSON` carries additional menus, default references and ordered presentation rules. `NativeNavigationMenus.State` evaluates the first matching trusted HTTPS rule and retains independent group state per menu. Controller layout changes follow effective menu IDs and visibility without navigating or reloading. Page-start, visited-history and finished-page callbacks update the presentation. See `docs/NATIVE_NAVIGATION_MENUS.md` for strict matching, fallback and validation limits.
 
 ## Navigation groups
 
