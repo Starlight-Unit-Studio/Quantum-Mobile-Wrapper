@@ -153,7 +153,7 @@ public final class NativeNavigationConfig {
         }
     }
 
-    private static void requireBoundedJson(String source) {
+    static void requireBoundedJson(String source) {
         if (source.length() > MAX_JSON_LENGTH) throw new IllegalArgumentException("Menu JSON is too long");
         int depth = 0;
         boolean quoted = false;

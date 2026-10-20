@@ -201,6 +201,8 @@ public final class MainActivity extends Activity
                 AppConfig.START_URL,
                 AppConfig.NATIVE_NAVIGATION_TITLE,
                 AppConfig.NATIVE_NAVIGATION_ITEMS_JSON,
+                AppConfig.NATIVE_NAVIGATION_PROFILE_JSON,
+                AppConfig.TRUSTED_DOMAIN,
                 AppConfig.TOP_NAVIGATION_ENABLED,
                 AppConfig.SIDEBAR_NAVIGATION_ENABLED,
                 AppConfig.BOTTOM_TABS_ENABLED,
@@ -285,8 +287,8 @@ public final class MainActivity extends Activity
 
     private int attributionBottomInsetDp() {
         return SplashAttributionPolicy.footerInsetDp(
-                AppConfig.BOTTOM_TABS_ENABLED,
-                AppConfig.CONTEXTUAL_TOOLBAR_ENABLED
+                nativeNavigation == null ? AppConfig.BOTTOM_TABS_ENABLED : nativeNavigation.isBottomTabsVisible(),
+                nativeNavigation == null ? AppConfig.CONTEXTUAL_TOOLBAR_ENABLED : nativeNavigation.isContextualToolbarVisible()
         );
     }
 
@@ -419,8 +421,15 @@ public final class MainActivity extends Activity
         if (sessionCookieStore != null) {
             sessionCookieStore.capture();
         }
-        if (nativeNavigation != null && webView != null) {
-            nativeNavigation.updateHistoryState(webView.getUrl());
+    }
+
+    @Override
+    public void onNavigationUrlChanged(String url) {
+        if (nativeNavigation != null) {
+            nativeNavigation.updateHistoryState(url);
+        }
+        if (attributionBanner != null) {
+            attributionBanner.updateBottomInset(attributionBottomInsetDp());
         }
     }
 

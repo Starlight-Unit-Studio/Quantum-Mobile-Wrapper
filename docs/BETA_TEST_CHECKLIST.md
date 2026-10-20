@@ -19,6 +19,21 @@ Run this checklist before replacing the current Web2App Pro build.
 - Back exits HTML fullscreen before navigating away
 - Unsupported custom schemes do not load inside the WebView
 
+## Independent menus and URL rules
+
+- Standard-only profiles retain previous Sidebar and first-five-tab behavior
+- Sidebar and Tabs select different menus; each empty menu independently shows Home
+- Same group IDs in different menus keep separate manual expansion state
+- Returning to a destination reveals active ancestors even after another menu was shown
+- Exact and segment-prefix paths, trailing slashes, percent escapes and host filters follow the documented first-match contract
+- Unspecified rule values inherit defaults; rules can show a surface whose default is disabled
+- Hiding each bar removes its inset, Sidebar closes when hidden, and its launcher remains available without Top Bar
+- Top Bar, Sidebar, Tabs and Contextual Toolbar update on load, redirects, Back/Forward and reported SPA history changes
+- Rule/menu selection changes do not navigate, reload or reset page state
+- Contextual Toolbar and the briefly visible attribution footer clear the currently visible bottom bars
+- Invalid extension JSON falls back to the valid Standard menu and default visibility
+- Confirm narrow landscape/portrait layout, large font settings and TalkBack focus after a menu changes
+
 ## Native navigation icons
 
 - Existing iconless profiles keep the text-only Sidebar and Bottom Tab layout
@@ -95,7 +110,7 @@ Background notification, lock-screen and guaranteed screen-off/service-owned pla
 
 ## Device matrix
 
-Minimum smoke matrix for beta11:
+Minimum smoke matrix for beta12:
 
 - Android 6.0 / API 23 emulator or device: cold start, login page, navigation, file picker, one download, one campaign OGG, one Asset Store revisit
 - Android 8-10 device or emulator: legacy immersive UI path

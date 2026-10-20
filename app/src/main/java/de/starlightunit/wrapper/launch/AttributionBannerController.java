@@ -34,7 +34,7 @@ public final class AttributionBannerController {
         this.banner = banner;
         this.enabled = enabled;
         this.durationMs = SplashAttributionPolicy.clampDurationMs(durationMs);
-        applyBottomInset(bottomInsetDp);
+        updateBottomInset(bottomInsetDp);
         banner.setVisibility(View.GONE);
         banner.setAlpha(0f);
     }
@@ -112,7 +112,7 @@ public final class AttributionBannerController {
                 .start();
     }
 
-    private void applyBottomInset(int bottomInsetDp) {
+    public void updateBottomInset(int bottomInsetDp) {
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) banner.getLayoutParams();
         params.bottomMargin = dp(Math.max(16, bottomInsetDp));
         banner.setLayoutParams(params);
