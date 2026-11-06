@@ -12,13 +12,26 @@ import android.webkit.DownloadListener;
 import android.webkit.URLUtil;
 import android.widget.Toast;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import de.starlightunit.wrapper.R;
+import de.starlightunit.wrapper.config.AppConfig;
 
 public final class AppDownloadListener implements DownloadListener {
     private final Context context;
+    private final Map<String, String> requestHeaders;
 
     public AppDownloadListener(Context context) {
+        this(context, Collections.emptyMap());
+    }
+
+    public AppDownloadListener(Context context, Map<String, String> requestHeaders) {
         this.context = context;
+        this.requestHeaders = requestHeaders == null
+                ? Collections.emptyMap()
+                : Collections.unmodifiableMap(new LinkedHashMap<>(requestHeaders));
     }
 
     @Override
@@ -49,12 +62,24 @@ public final class AppDownloadListener implements DownloadListener {
                 request.addRequestHeader("User-Agent", userAgent);
             }
 
+            for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
+                if (isDownloadSafeHeader(header.getKey(), header.getValue())) {
+                    request.addRequestHeader(header.getKey(), header.getValue());
+                }
+            }
+
             String cookies = CookieManager.getInstance().getCookie(url);
             if (cookies != null && !cookies.trim().isEmpty()) {
                 request.addRequestHeader("Cookie", cookies);
             }
 
-            if (canWritePublicDownloads()) {
+            boolean legacyPermissionGranted = context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED;
+            if (DownloadDestinationPolicy.usePublicDownloads(
+                    AppConfig.PUBLIC_DOWNLOADS_ENABLED,
+                    Build.VERSION.SDK_INT,
+                    legacyPermissionGranted
+            )) {
                 request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
             } else {
                 request.setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName);
@@ -71,11 +96,19 @@ public final class AppDownloadListener implements DownloadListener {
         }
     }
 
-    private boolean canWritePublicDownloads() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return true;
+    private static boolean isDownloadSafeHeader(String name, String value) {
+        if (name == null || value == null || name.trim().isEmpty() || value.trim().isEmpty()) {
+            return false;
         }
-        return context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                == PackageManager.PERMISSION_GRANTED;
+        if (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0) {
+            return false;
+        }
+        String normalized = name.trim().toLowerCase(java.util.Locale.ROOT);
+        return !"cookie".equals(normalized)
+                && !"user-agent".equals(normalized)
+                && !"host".equals(normalized)
+                && !"content-length".equals(normalized)
+                && !"connection".equals(normalized);
     }
+
 }

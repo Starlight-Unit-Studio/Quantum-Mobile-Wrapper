@@ -9,6 +9,7 @@ Run this checklist before replacing the current Web2App Pro build.
 - Login session survives app restart
 - Closing and reopening the app does not create a broken duplicate session
 - App resumes correctly after being backgrounded for several minutes
+- Android 16 cold start does not regress the beta8 immersive-mode lifecycle fix
 
 ## Navigation
 
@@ -18,6 +19,48 @@ Run this checklist before replacing the current Web2App Pro build.
 - Back exits HTML fullscreen before navigating away
 - Unsupported custom schemes do not load inside the WebView
 
+## Independent menus and URL rules
+
+- Standard-only profiles retain previous Sidebar and first-five-tab behavior
+- Sidebar and Tabs select different menus; each empty menu independently shows Home
+- Same group IDs in different menus keep separate manual expansion state
+- Returning to a destination reveals active ancestors even after another menu was shown
+- Exact and segment-prefix paths, trailing slashes, percent escapes and host filters follow the documented first-match contract
+- Unspecified rule values inherit defaults; rules can show a surface whose default is disabled
+- Hiding each bar removes its inset, Sidebar closes when hidden, and its launcher remains available without Top Bar
+- Top Bar, Sidebar, Tabs and Contextual Toolbar update on load, redirects, Back/Forward and reported SPA history changes
+- Rule/menu selection changes do not navigate, reload or reset page state
+- Contextual Toolbar and the briefly visible attribution footer clear the currently visible bottom bars
+- Invalid extension JSON falls back to the valid Standard menu and default visibility
+- Confirm narrow landscape/portrait layout, large font settings and TalkBack focus after a menu changes
+
+## Native navigation icons
+
+- Existing iconless profiles keep the text-only Sidebar and Bottom Tab layout
+- Built-in icons use foreground color when inactive and accent color when selected
+- A distinct active icon appears in both Sidebar and Bottom Tabs after menu navigation and Back/Forward
+- Mixed iconed and iconless entries keep aligned labels; long tab labels truncate without hiding their accessibility name
+- Custom PNGs preserve their colors, transparency and aspect ratio inside the icon slot
+- A missing active PNG falls back to the normal icon; missing icons leave usable labels and actions
+- Invalid or uncompiled image references do not trigger network requests or crash navigation
+- Repeat the mixed-menu checks on Android 6 / API 23 and a recent Android device
+
+## Native navigation groups
+
+- A flat legacy menu keeps its original Sidebar order and first five Bottom Tabs
+- Groups toggle without navigating or closing the Sidebar; nested child visibility follows every ancestor
+- Up to three group ancestors fit the 280 dp Sidebar with long labels, mixed icons and increased system font size
+- Group headers expose one focus target with the label, expanded/collapsed state and the matching accessibility action
+- TalkBack announces manual expansion/collapse and skips hidden descendants
+- A selected descendant highlights all ancestor groups and switches their active icons
+- Startup and navigation to a different current URL open the selected destination's ancestors
+- Manually collapsing an active group survives repeated progress/history callbacks for the same URL and reopening the Sidebar
+- Bottom Tabs use only the first five links in depth-first order, including links inside collapsed groups
+- Empty groups remain toggleable, with a Home fallback when the whole menu has no destinations
+- Activity recreation reapplies configured collapse defaults and opens the current destination's ancestors
+- Malformed, duplicate-ID, excessive-depth or excessive-count trees show the Home fallback without a partial menu or crash
+- Repeat the group checks on Android 6 / API 23 and a recent Android device
+
 ## Game rendering
 
 - Game fills the screen without unwanted browser chrome
@@ -26,20 +69,17 @@ Run this checklist before replacing the current Web2App Pro build.
 - HTML fullscreen content enters and exits cleanly
 - Keyboard input works without permanently exposing system bars
 
-## Quantum NMP / Media3
+## Quantum NMP
 
 - Campaign music starts through the existing `window.QuantumNMP` bridge
 - Full-page Game navigation does not restart or duplicate the currently playing track
-- Pressing Home leaves active soundtrack playback running
-- Turning the screen off leaves active soundtrack playback running
-- Returning to the Game reconnects control without starting a duplicate player
-- Android media notification shows the current campaign title and Starlight Unit Studios as artist
-- Notification and lock-screen play/pause controls affect the same Quantum NMP session
-- Headset/Bluetooth play/pause controls affect the same session where supported by the device
-- `pause()`, `resume()`, `stop()`, enable/disable and volume still match the pre-Media3 bridge behavior
-- Looping tracks continue to loop after backgrounding
-- Campaign OGG persistence still survives normal app restarts and application updates
+- `pause()`, `resume()`, `stop()`, enable/disable and volume behave consistently
+- Looping tracks continue to loop while the wrapper process remains active
+- Campaign OGG persistence survives normal app restarts and application updates
 - Clearing Android app data removes persisted campaign media and preferences
+- A failed persistent OGG download falls back safely instead of crashing the wrapper
+
+Background notification, lock-screen and guaranteed screen-off/service-owned playback are not beta9 acceptance criteria. Those MediaSession capabilities remain deferred until the service-based NMP redesign is reintroduced as its own test scope.
 
 ## Quantum Asset Store
 
@@ -59,6 +99,7 @@ Run this checklist before replacing the current Web2App Pro build.
 - Multiple file upload works when requested by the page
 - HTTP(S) downloads begin through DownloadManager
 - Logged-in downloads receive the active cookie session
+- Android 6/API 23 falls back to app-owned external download storage when public storage permission is unavailable
 
 ## Failure behavior
 
@@ -69,12 +110,23 @@ Run this checklist before replacing the current Web2App Pro build.
 
 ## Device matrix
 
-Minimum useful smoke matrix for the public beta:
+Minimum smoke matrix for beta12:
 
-- Samsung Galaxy / current Android
-- Android 16 / API 36 emulator or device
-- Android 14 or 15 device
-- One older Android 8-10 device if the beta audience includes them
+- Android 6.0 / API 23 emulator or device: cold start, login page, navigation, file picker, one download, one campaign OGG, one Asset Store revisit
+- Android 8-10 device or emulator: legacy immersive UI path
+- Android 11-12 device or emulator: `WindowInsetsController` path
+- Android 13-15 device or emulator: modern back dispatcher + current WebView behavior
+- Samsung Galaxy / Android 16: beta8 startup regression test
+- Samsung DeX: startup only; desktop/freeform sizing remains best-effort
+
+## CI gate
+
+Before merge:
+
+- `lintDebug` passes with `minSdk 23`
+- unit tests pass
+- debug APK assembles successfully
+- no new unsupported-platform API call is suppressed merely to make lint green; version-specific APIs must be guarded or isolated
 
 ## Release identity
 

@@ -4,6 +4,12 @@ The wrapper stays intentionally small and separates policy from Android UI plumb
 
 - `config/AppConfig`: product URL, trusted domains, native cache scopes and compatibility toggles
 - `navigation/NavigationPolicy`: pure Java URL trust decision, unit testable without Android
+- `navigation/NativeNavigationConfig`: bounded menu tree and depth-first destination list with optional normal/active icons
+- `navigation/NativeNavigationGroups`: pure Java group expansion state and active-descendant policy
+- `navigation/NativeNavigationMenus`: bounded catalog, ordered raw-path/host rules, independent selections and per-menu group state
+- `navigation/NativeNavigationIconPolicy`: pure Java catalogue and strict compiled-asset namespace validation
+- `navigation/NativeNavigationIcons`: tinted vector loading and bounded, aspect-preserving bundled PNG loading
+- `navigation/NativeNavigationController`: native bars and Sidebar, shared URL selection state and accessible icon/label views
 - `web/WebViewConfigurator`: security and browser capability configuration
 - `web/GameWebViewClient`: navigation, TLS, load error handling and cache-hit interception
 - `web/QuantumAssetWarmup`: discovers static resources already used by a trusted page and schedules native warm-up
@@ -16,6 +22,24 @@ The wrapper stays intentionally small and separates policy from Android UI plumb
 - `media/QuantumNativeMediaPlayer`: framework `MediaPlayer` playback, soundtrack state and persisted music settings
 - `media/QuantumMediaMetadata`: pure-Java title helper retained for future native media surfaces
 - `MainActivity`: lifecycle and view orchestration only
+
+## Navigation menus and URL rules
+
+The Standard tree remains in `NATIVE_NAVIGATION_ITEMS_JSON`; `NATIVE_NAVIGATION_PROFILE_JSON` carries additional menus, default references and ordered presentation rules. `NativeNavigationMenus.State` evaluates the first matching trusted HTTPS rule and retains independent group state per menu. Controller layout changes follow effective menu IDs and visibility without navigating or reloading. Page-start, visited-history and finished-page callbacks update the presentation. See `docs/NATIVE_NAVIGATION_MENUS.md` for strict matching, fallback and validation limits.
+
+## Navigation groups
+
+Builder keeps links and groups in one ordered menu tree. The native parser exposes that tree for Sidebar rendering and a separate depth-first list of link destinations for Bottom Tabs. Existing flat profiles keep their original order. The parser requires unique, exact group IDs and validates the entire tree before exposing any destinations. It caps the menu at 12 links, 12 groups, 24 total nodes and three group ancestors, and bounds JSON length and structural depth before using Android's JSON parser.
+
+Group headers toggle a nested child container without navigating. Their selected style and active icon follow any selected descendant. Expansion state belongs to the navigation controller: configured defaults apply initially, active ancestors open at startup and on a new current URL, and repeated updates for the same URL preserve manual collapse. Activity recreation starts from the configured defaults again. No preferences or external storage are involved.
+
+Sidebar uses 50 dp minimum targets, 12 dp indentation per group ancestor and a separate disclosure arrow. A header exposes one accessible button with expand/collapse actions and an expanded/collapsed description. Empty groups remain visible, and an all-empty menu receives a Home fallback in both Sidebar and Bottom Tabs. See `docs/NATIVE_NAVIGATION_GROUPS.md` for the profile contract and pending device checks.
+
+## Navigation icons
+
+Builder serializes normal and active icon settings with each link or group. Built-in identifiers refer to packaged original vector resources. Custom PNGs are compiled into content-addressed files under `assets/quantum_nav_icons/`, leaving only short asset references in `AppConfig`. The runtime never fetches navigation images over the network. Its per-controller cache is bounded by the menu limit of 24 nodes with at most two icon assets per node, each constrained to 64 KiB and 256 by 256 pixels before decoding.
+
+Both Sidebar and Bottom Tabs use the same current-URL selection rule. The icon loader falls back to the normal icon if the selected variant cannot be decoded, and the label/action survives any icon failure. Icon slots are reserved per surface when needed, while legacy iconless profiles retain their text-only layout. See `docs/NATIVE_NAVIGATION_ICONS.md` for the profile contract.
 
 ## Startup lifecycle
 

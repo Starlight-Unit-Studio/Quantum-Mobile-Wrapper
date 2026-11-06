@@ -8,6 +8,159 @@
 - Playlist entries pass through the same trusted HTTPS campaign-media validation as single-track playback.
 - Added bounded newline playlist transport parsing and unit tests while keeping the existing `play(source, loop)` bridge API backward compatible.
 
+## 0.1.0-beta12
+
+Independent Sidebar/Bottom Tabs menus and URL-based presentation.
+
+- Adds a bounded menu catalog, independent defaults and up to sixteen ordered
+  exact/prefix path rules with optional exact trusted host filters.
+- Applies the first matching rule as a whole; omitted values use defaults and
+  visibility can show or hide any of the four navigation surfaces.
+- Keeps the current WebView page and history when selections/layout change;
+  Sidebar and Tabs independently retain their tree/first-five/Home behavior.
+- Scopes group expansion to menu identity and observes navigation for inactive
+  menus so returning to a destination reveals its active ancestors.
+- Updates dynamic WebView/toolbar insets and Sidebar launcher state. Hiding or
+  changing the Sidebar menu closes its drawer; tabs-only changes preserve it.
+- Forwards page-start, visited-history and current finished-page URLs to the
+  presentation controller. Existing trusted loading and link routing stay intact.
+- Makes the existing attribution footer's inset follow currently visible bottom
+  bars, preserving its completed timing and lifecycle.
+- Rejects malformed catalog/rule JSON atomically, retaining the valid Standard
+  menu and default visibility. Keeps API23 compatibility without new dependencies.
+- Adds parser/matcher/selection/state tests and local production-source compilation.
+  APK/device/WebView rendering acceptance remains open in NATIVE_NAVIGATION_MENUS.md.
+- Increases Android versionCode to 12. No GitHub Actions validation is used.
+
+## 0.1.0-beta11
+
+Nested and collapsible native navigation groups.
+
+- Adds Sidebar group headers with explicit IDs, configurable initial collapse and up to three group ancestors.
+- Keeps existing flat link profiles valid and exposes the first five depth-first link destinations in Bottom Tabs.
+- Supports normal and active group icons; a group is selected whenever one of its descendant destinations is selected.
+- Opens active ancestors at startup and when the current URL changes, while preserving manual expansion choices on same-URL updates.
+- Adds accessible expand/collapse actions, state descriptions and announcements to each group header.
+- Uses 50 dp minimum targets and 12 dp indentation per ancestor to retain space in the 280 dp Sidebar.
+- Bounds menus to 12 links, 12 groups and 24 total nodes; rejects malformed trees atomically before rendering any partial destinations.
+- Retains empty group headers and provides a Home fallback when the entire menu has no link destinations.
+- Adds pure Java tests for tree parsing, limits, ID validation, selected descendants and expansion state.
+- Keeps Android 6 / API 23 compatibility and uses no new runtime dependency.
+- Increases Android versionCode to 11.
+
+## 0.1.0-beta10
+
+Native navigation icons.
+
+- Adds 20 original vector icons shared with the Quantum Builder catalogue.
+- Adds optional normal and active icons to Sidebar and Bottom Tab menu entries.
+- Supports custom PNG assets bundled by Builder, limited to 64 KiB and 256 pixels on each side.
+- Applies foreground/accent tint to built-ins and preserves the original colors and aspect ratio of custom images.
+- Updates the selected state in Sidebar and Bottom Tabs with WebView navigation.
+- Keeps icon slots aligned in mixed menus and retains text-only layout for existing iconless profiles.
+- Rejects remote image URLs, raw data URLs and asset paths outside the generated icon namespace.
+- Falls back to the normal icon when a selected asset is unavailable, while preserving the menu label and action.
+- Keeps Android 6 / API 23 compatibility; no new runtime dependency is required.
+
+Previously unreleased runtime features included in beta10:
+
+Custom splash replacement and post-load STU attribution.
+
+- Generated apps may replace the visible STU production splash with one profile-provided custom splash; both splash images are never shown in sequence.
+- The production splash stays packaged as a safe fallback when no valid custom resource exists.
+- Custom-splash builds show the canonical STU attribution banner once after both intro completion and the first successful main-page load.
+- Attribution display duration is bounded to 2 through 4 seconds and defaults to 3 seconds.
+- The floating banner automatically clears enabled Bottom Tabs and Contextual Toolbar surfaces.
+- Factory-splash builds and failed first-page loads never show the footer attribution banner.
+- Splash and attribution lifecycles are controlled by separate components with a small tested coordination policy.
+- Keeps Android 6 / API 23 compatibility and the existing Android 16 startup safeguards.
+
+Native link handling runtime.
+
+- Adds first-match-wins link rules for scheme, host and path-prefix matching.
+- Link rules can keep trusted targets internal, delegate allowed targets externally, or block them.
+- Adds profile-controlled target-blank/window.open policy for Blocked, Internal and External behavior.
+- Internal new windows are folded into the existing WebView; temporary popup WebViews are destroyed after URL capture.
+- Adds trusted custom-scheme deep links and resolves incoming intents only to trusted app HTTPS URLs.
+- Centralizes Android external-link launching behind the same allowed-scheme policy.
+- Keeps Android 6 / API 23 compatibility and the existing trusted-domain boundary.
+
+Native Navigation runtime foundation.
+
+- Adds native Top Bar, Sidebar, Bottom Tabs and Contextual Toolbar surfaces controlled by compiled app profiles.
+- Top Bar shows the configured app title and native Home/Sidebar actions.
+- Sidebar and Bottom Tabs share one ordered list of up to 12 trusted navigation destinations; Bottom Tabs expose the first five.
+- Contextual Toolbar provides native Back, Home, Reload and Forward actions tied to WebView history.
+- Relative menu targets resolve against the app start URL and all native navigation still passes through Quantum's trusted-domain loader.
+- Adds profile-controlled navigation background, foreground and accent colors.
+- Native bars reserve WebView layout space instead of covering page content.
+- Keeps Android 6 / API 23 compatibility and the existing Android 16 lifecycle safeguards.
+
+Runtime theme controls and page transitions.
+
+- Adds Dark / Light / Auto WebView theme modes with system-theme resolution for Auto.
+- Exposes the resolved theme to trusted pages through `data-quantum-theme` and CSS `color-scheme`.
+- Uses AndroidX WebKit darkening support when available from the installed System WebView.
+- Applies profile-controlled status bar, navigation bar and splash background colors.
+- Chooses dark or light system-bar icons from configured color luminance.
+- Adds optional native page-load fade transitions without changing the mandatory production splash.
+- Keeps Android 6 / API 23 compatibility and the existing Android 16 system-bar lifecycle safeguards.
+
+Profile-controlled public downloads.
+
+- Adds a compiled Public Downloads runtime flag used by Android DownloadManager.
+- Android 10+ writes enabled downloads to the shared user-visible Downloads directory.
+- Android 6 through 9 request WRITE_EXTERNAL_STORAGE only when public downloads are enabled.
+- Legacy devices fall back to app-specific external storage if storage permission is unavailable.
+- Disabling Public Downloads intentionally keeps downloaded files inside app-specific external storage.
+- Keeps authenticated download cookies, wrapper request headers and Android 6/API 23 compatibility.
+
+Configurable native interface controls.
+
+- Adds profile-controlled pull-to-refresh using Android SwipeRefreshLayout.
+- Adds profile-controlled pinch-to-zoom without showing legacy zoom buttons.
+- Applies Android WebView font scaling from 50% through 200%.
+- Makes immersive fullscreen a real profile-controlled runtime option while keeping HTML5 media fullscreen independent.
+- Pull-to-refresh reloads through Quantum's trusted navigation path so compiled request headers remain available.
+- Keeps Android 6 / API 23 compatibility and preserves the wrapper's existing fullscreen default until a generated profile overrides it.
+
+Runtime Web Overrides parity.
+
+- Applies configured Custom CSS to trusted app pages without modifying external pages.
+- Executes configured Custom JavaScript on trusted pages after navigation completes.
+- Adds cookie persistence modes for encrypted persistent sessions, website/server defaults and session-only starts.
+- Preserves legacy Quantum behavior by treating older `default` cookie settings as persistent.
+- Keeps Android 6 / API 23 compatibility and the existing trusted-origin boundary.
+
+Configurable native WebView loading indicators.
+
+- Preserves the current top loading bar as the default for existing apps.
+- Adds per-app modes for no indicator, top bar, bottom bar, centered spinner and fullscreen spinner.
+- Adds configurable indicator color, bar thickness, spinner size and fullscreen overlay dimming.
+- Loading UI remains separate from the mandatory STU production splash and follows the existing WebView navigation/progress callbacks.
+- Implementation remains compatible with the Android 6 / API 23 baseline.
+
+Dynamic image recovery through Quantum Asset Store.
+
+- Trusted image requests below `/assets/` that miss the native store are now warmed immediately in parallel while WebView keeps its ordinary live request path.
+- This covers images assigned after `onPageFinished()` (for example rotating combat/opponent portraits), which cannot be discovered by the existing page-finished resource scan.
+- Only `image/*` asset types use the miss warm-up path; CSS, JavaScript, audio, video, API and HTML traffic keep their existing behavior.
+- Existing host/path policy, cookie/request-header forwarding, file-size limits, TTLs and cache budget remain unchanged.
+- The change is additive and API-23 compatible; a failed native warm-up never blocks the WebView request.
+
+## 0.1.0-beta9
+
+Android 6 / API 23 compatibility baseline.
+
+- Lowered `minSdk` from API 26 to API 23 while keeping `compileSdk` and `targetSdk` at API 36.
+- Added Android `lintDebug` to CI before unit tests and APK assembly so accidental newer-platform calls are caught against the API 23 minimum.
+- Replaced API 24-only `URLConnection.getContentLengthLong()` calls in Quantum Asset Store and Quantum NMP campaign persistence with the API 1-compatible integer content-length accessor; the existing 64 MiB streaming limits remain authoritative.
+- Replaced API 24-only `List.sort()` / `Comparator.comparingLong()` cache-eviction code with an API 23-safe `Collections.sort()` comparator.
+- Isolated Android 11/API 30 `WindowInsetsController` code in a version-gated helper class while retaining the beta8 Android 16 lifecycle fix.
+- Kept the legacy system-UI fullscreen path for Android 6 through Android 10 and the API 33 back-dispatcher path for current Android versions.
+- Quantum NMP bridge behavior, persistent OGG ownership, Quantum Asset Store policy, trusted headers and Game URL remain unchanged.
+- Android `versionCode` increased to 9.
+
 ## 0.1.0-beta8
 
 Android 16 startup crash fix, confirmed on real hardware.
@@ -88,7 +241,7 @@ Quantum Asset Store for Game resources below `/assets/`.
 - API, HTML/PHP traffic, credential URLs, traversal attempts, redirects and HTML error/login responses are excluded from the store.
 - Campaign soundtrack files below `/assets/sounds/campaign/` remain owned by Quantum NMP and are not duplicated in the generic Asset Store.
 - Cache filenames are SHA-256-derived from the complete normalized asset URL including query strings, so Game cachebuster versions produce distinct native entries.
-- Versioned assets use a 30-day native TTL, unversioned assets use a 24-hour native TTL.
+- Versioned assets use a 30-day native TTL, unversioned assets use a 24-hour TTL.
 - Storage is capped at 64 MiB per entry and 256 MiB total with oldest-entry eviction.
 - Wrapper request markers and available WebView cookies are reused for native warm-up requests.
 - Android `versionCode` increased to 3.
