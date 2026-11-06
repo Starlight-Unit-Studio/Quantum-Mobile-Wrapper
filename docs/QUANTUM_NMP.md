@@ -23,15 +23,27 @@ The bridge remains exposed as `window.QuantumNMP` and provides:
 - `isAvailable()`
 - `version()`
 - `play(source, loop)`
+- `playPlaylist(serializedSources, shuffle)`
 - `pause()`
 - `resume()`
 - `stop()`
 - `setEnabled(enabled)` / `isEnabled()`
 - `setVolume(volume)` / `getVolume()`
 
-The web contract is intentionally unchanged. The Game does not need to know which Android playback implementation is behind the bridge.
+`playPlaylist()` accepts one media source per line. The native player owns playlist order, shuffle state and track transitions, so a full-page WebView navigation does not destroy or restart the active soundtrack. Repeating the same playlist request is idempotent and resumes the current native track instead of reshuffling it.
 
-`source` may be absolute or relative to the current page, but playback is accepted only when both the current page and resolved media URL use HTTPS on the configured trusted Starlight domain.
+Example:
+
+```js
+window.QuantumNMP.playPlaylist([
+  '/assets/sounds/campaign/game1.ogg',
+  '/assets/sounds/campaign/game2.ogg'
+].join('\n'), true);
+```
+
+The single-track `play(source, loop)` contract remains backward compatible.
+
+`source` may be absolute or relative to the current page, but playback is accepted only when both the current page and resolved media URL use HTTPS on the configured trusted Starlight domain. Playlist requests apply the same validation to every track and are rejected as a whole if one source is outside the native campaign-media policy.
 
 The enabled state and volume are persisted in Android `SharedPreferences`. This gives the game a stable hook for its own settings UI without defining or duplicating the game's settings model inside the wrapper.
 
@@ -39,7 +51,7 @@ The enabled state and volume are persisted in Android `SharedPreferences`. This 
 
 Campaign OGG files are stored under the app-private Android files directory in `quantum_nmp/campaign`. Files are written through a temporary `.part` file, validated for the `OggS` signature and then renamed into the persistent store.
 
-This storage survives ordinary app restarts and application updates. Android removes it when the user clears app storage or uninstalls the app.
+This storage survives ordinary app restarts and application updates. Android removes it when the user clears app storage or uninstalls the application.
 
 Quantum Asset Store deliberately excludes `/assets/sounds/campaign/`, so campaign music has exactly one native owner and is not duplicated between two persistent stores.
 

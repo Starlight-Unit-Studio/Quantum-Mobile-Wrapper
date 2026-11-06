@@ -5,10 +5,13 @@ import android.webkit.WebView;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
 
 import de.starlightunit.wrapper.config.AppConfig;
 import de.starlightunit.wrapper.media.QuantumMediaSourcePolicy;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
+import de.starlightunit.wrapper.media.QuantumPlaylistCodec;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 
 public final class QuantumNativeMediaBridge {
@@ -58,6 +61,38 @@ public final class QuantumNativeMediaBridge {
             if (trustedSource != null) {
                 mediaPlayer.play(trustedSource, loop);
             }
+        });
+    }
+
+    /**
+     * Starts a native repeating playlist. JavaScript passes one source per
+     * line because JavascriptInterface has no portable collection transport.
+     * Every source is resolved against the current trusted page and validated
+     * by the same campaign-media policy as single-track playback.
+     */
+    @JavascriptInterface
+    public void playPlaylist(String serializedSources, boolean shuffle) {
+        List<String> requestedSources = QuantumPlaylistCodec.decode(serializedSources);
+        if (requestedSources.isEmpty()) {
+            return;
+        }
+
+        webView.post(() -> {
+            String currentUrl = webView.getUrl();
+            if (!navigationPolicy.isTrustedHttps(currentUrl)) {
+                return;
+            }
+
+            List<String> trustedSources = new ArrayList<>(requestedSources.size());
+            for (String source : requestedSources) {
+                String trustedSource = resolveCampaignSource(currentUrl, source);
+                if (trustedSource == null) {
+                    return;
+                }
+                trustedSources.add(trustedSource);
+            }
+
+            mediaPlayer.playPlaylist(trustedSources, shuffle);
         });
     }
 

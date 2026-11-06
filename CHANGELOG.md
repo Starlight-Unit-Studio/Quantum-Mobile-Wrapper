@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added native repeating/shuffled playlist playback to Quantum NMP through `window.QuantumNMP.playPlaylist(serializedSources, shuffle)`.
+- Playlist sequencing now remains Activity-owned and survives full-page WebView navigation without recreating an HTML `<audio>` element.
+- Repeating the same playlist request is idempotent, so page bootstrap does not restart or reshuffle an already running soundtrack.
+- Playlist entries pass through the same trusted HTTPS campaign-media validation as single-track playback.
+- Added bounded newline playlist transport parsing and unit tests while keeping the existing `play(source, loop)` bridge API backward compatible.
+
 ## 0.1.0-beta12
 
 Independent Sidebar/Bottom Tabs menus and URL-based presentation.
