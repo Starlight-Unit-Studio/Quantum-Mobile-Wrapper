@@ -1,80 +1,229 @@
 package de.starlightunit.wrapper;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
-import android.view.WindowInsets;
-import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import java.util.Map;
 
 import de.starlightunit.wrapper.bridge.QuantumNativeMediaBridge;
 import de.starlightunit.wrapper.config.AppConfig;
 import de.starlightunit.wrapper.download.AppDownloadListener;
+import de.starlightunit.wrapper.download.DownloadDestinationPolicy;
+import de.starlightunit.wrapper.launch.AttributionBannerController;
+import de.starlightunit.wrapper.launch.QuantumIntroController;
+import de.starlightunit.wrapper.launch.SplashAttributionPolicy;
 import de.starlightunit.wrapper.media.QuantumNativeMediaPlayer;
+import de.starlightunit.wrapper.navigation.DeepLinkResolver;
+import de.starlightunit.wrapper.navigation.ExternalLinkLauncher;
+import de.starlightunit.wrapper.navigation.LinkRoutingPolicy;
+import de.starlightunit.wrapper.navigation.NativeNavigationController;
+import de.starlightunit.wrapper.navigation.NewWindowPolicy;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
+import de.starlightunit.wrapper.session.CookiePersistencePolicy;
+import de.starlightunit.wrapper.session.QuantumSessionCookieStore;
+import de.starlightunit.wrapper.ui.LoadingIndicatorController;
+import de.starlightunit.wrapper.ui.PageTransitionController;
+import de.starlightunit.wrapper.ui.SystemBarStyle;
 import de.starlightunit.wrapper.web.GameWebChromeClient;
 import de.starlightunit.wrapper.web.GameWebViewClient;
 import de.starlightunit.wrapper.web.WebViewConfigurator;
+import de.starlightunit.wrapper.web.WebViewProfileHeaders;
 import de.starlightunit.wrapper.web.WrapperRequestHeaders;
 
 public final class MainActivity extends Activity
         implements GameWebChromeClient.FileChooserHost,
         GameWebViewClient.Callbacks,
+        GameWebChromeClient.NewWindowHost,
         GameWebChromeClient.Callbacks {
 
     private static final int FILE_CHOOSER_REQUEST = 7001;
+    private static final int LEGACY_DOWNLOAD_PERMISSION_REQUEST = 7002;
 
     private WebView webView;
-    private ProgressBar progressBar;
+    private LoadingIndicatorController loadingIndicator;
+    private PageTransitionController pageTransition;
+    private SwipeRefreshLayout refreshLayout;
     private View errorPanel;
     private GameWebChromeClient chromeClient;
     private GameWebViewClient webViewClient;
     private ValueCallback<android.net.Uri[]> pendingFileCallback;
     private boolean mainFrameFailed;
     private NavigationPolicy navigationPolicy;
+    private LinkRoutingPolicy linkRoutingPolicy;
+    private NativeNavigationController nativeNavigation;
     private Map<String, String> requestHeaders;
     private QuantumNativeMediaPlayer nativeMediaPlayer;
+    private QuantumIntroController introController;
+    private AttributionBannerController attributionBanner;
+    private QuantumSessionCookieStore sessionCookieStore;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         configureWindow();
         setContentView(R.layout.activity_main);
-        enterImmersiveMode();
+        applyConfiguredSystemUi(false);
 
         webView = findViewById(R.id.web_view);
-        progressBar = findViewById(R.id.progress);
+        pageTransition = new PageTransitionController(webView, AppConfig.PAGE_TRANSITIONS_ENABLED);
+        refreshLayout = findViewById(R.id.refresh_container);
+        ProgressBar horizontalProgress = findViewById(R.id.progress);
+        FrameLayout loadingOverlay = findViewById(R.id.loading_overlay);
+        ProgressBar loadingSpinner = findViewById(R.id.loading_spinner);
         errorPanel = findViewById(R.id.error_panel);
         FrameLayout fullscreenContainer = findViewById(R.id.fullscreen_container);
+        loadingIndicator = new LoadingIndicatorController(
+                this,
+                horizontalProgress,
+                loadingOverlay,
+                loadingSpinner,
+                AppConfig.LOADING_INDICATOR_STYLE,
+                AppConfig.LOADING_INDICATOR_COLOR,
+                AppConfig.LOADING_BAR_THICKNESS_DP,
+                AppConfig.LOADING_SPINNER_SIZE_DP,
+                AppConfig.LOADING_OVERLAY_DIM_PERCENT
+        );
+        refreshLayout.setEnabled(AppConfig.PULL_TO_REFRESH_ENABLED);
+        refreshLayout.setOnRefreshListener(() -> {
+            String currentUrl = webView == null ? null : webView.getUrl();
+            if (webView == null) {
+                refreshLayout.setRefreshing(false);
+                return;
+            }
+            loadTrustedUrl(currentUrl);
+        });
+        ImageView introOverlay = findViewById(R.id.intro_overlay);
+        introOverlay.setBackgroundColor(
+                SystemBarStyle.parseRgb(AppConfig.SPLASH_BACKGROUND_COLOR, Color.BLACK)
+        );
+        ImageView attributionView = findViewById(R.id.attribution_banner);
+        attributionBanner = new AttributionBannerController(
+                this,
+                attributionView,
+                AppConfig.ATTRIBUTION_BANNER_ENABLED,
+                AppConfig.ATTRIBUTION_BANNER_DURATION_MS,
+                attributionBottomInsetDp()
+        );
         Button retryButton = findViewById(R.id.retry_button);
 
+        introController = new QuantumIntroController(
+                this,
+                introOverlay,
+                AppConfig.CUSTOM_SPLASH_ENABLED,
+                customSplashUsed -> attributionBanner.onIntroFinished(customSplashUsed)
+        );
+        introController.start(savedInstanceState != null);
+
         WebViewConfigurator.configure(this, webView);
+        if (CookiePersistencePolicy.usesEncryptedPersistence(AppConfig.COOKIE_PERSISTENCE_MODE)) {
+            sessionCookieStore = new QuantumSessionCookieStore(this);
+            sessionCookieStore.restore();
+        } else if (savedInstanceState == null
+                && CookiePersistencePolicy.startsFreshSession(AppConfig.COOKIE_PERSISTENCE_MODE)) {
+            CookiePersistencePolicy.clearForFreshSession();
+        }
 
         navigationPolicy = new NavigationPolicy(AppConfig.TRUSTED_DOMAIN);
+        linkRoutingPolicy = new LinkRoutingPolicy(navigationPolicy, AppConfig.LINK_RULES_JSON);
+        nativeNavigation = new NativeNavigationController(
+                this,
+                refreshLayout,
+                findViewById(R.id.native_top_bar),
+                findViewById(R.id.native_sidebar_launcher),
+                findViewById(R.id.native_bottom_tabs),
+                findViewById(R.id.native_bottom_tabs_content),
+                findViewById(R.id.native_context_toolbar),
+                findViewById(R.id.native_sidebar_overlay),
+                findViewById(R.id.native_sidebar_panel),
+                findViewById(R.id.native_sidebar_content),
+                new NativeNavigationController.Host() {
+                    @Override
+                    public void navigate(String target) {
+                        loadTrustedUrl(target);
+                    }
+
+                    @Override
+                    public void home() {
+                        loadTrustedUrl(AppConfig.START_URL);
+                    }
+
+                    @Override
+                    public void reload() {
+                        loadTrustedUrl(webView == null ? AppConfig.START_URL : webView.getUrl());
+                    }
+
+                    @Override
+                    public void back() {
+                        if (webView != null && webView.canGoBack()) {
+                            webView.goBack();
+                        }
+                    }
+
+                    @Override
+                    public void forward() {
+                        if (webView != null && webView.canGoForward()) {
+                            webView.goForward();
+                        }
+                    }
+
+                    @Override
+                    public boolean canGoBack() {
+                        return webView != null && webView.canGoBack();
+                    }
+
+                    @Override
+                    public boolean canGoForward() {
+                        return webView != null && webView.canGoForward();
+                    }
+                },
+                AppConfig.START_URL,
+                AppConfig.NATIVE_NAVIGATION_TITLE,
+                AppConfig.NATIVE_NAVIGATION_ITEMS_JSON,
+                AppConfig.NATIVE_NAVIGATION_PROFILE_JSON,
+                AppConfig.TRUSTED_DOMAIN,
+                AppConfig.TOP_NAVIGATION_ENABLED,
+                AppConfig.SIDEBAR_NAVIGATION_ENABLED,
+                AppConfig.BOTTOM_TABS_ENABLED,
+                AppConfig.CONTEXTUAL_TOOLBAR_ENABLED,
+                AppConfig.NATIVE_NAVIGATION_BACKGROUND_COLOR,
+                AppConfig.NATIVE_NAVIGATION_FOREGROUND_COLOR,
+                AppConfig.NATIVE_NAVIGATION_ACCENT_COLOR
+        );
         requestHeaders = WrapperRequestHeaders.create();
+        WebViewProfileHeaders.install(webView, AppConfig.START_URL, requestHeaders);
         nativeMediaPlayer = new QuantumNativeMediaPlayer(this);
         webView.addJavascriptInterface(
                 new QuantumNativeMediaBridge(webView, navigationPolicy, nativeMediaPlayer),
                 AppConfig.NATIVE_MEDIA_BRIDGE_NAME
         );
-        webViewClient = new GameWebViewClient(this, navigationPolicy, this, requestHeaders);
+        webViewClient = new GameWebViewClient(this, navigationPolicy, linkRoutingPolicy, this, requestHeaders);
         webView.setWebViewClient(webViewClient);
-        chromeClient = new GameWebChromeClient(fullscreenContainer, this, this);
+        chromeClient = new GameWebChromeClient(fullscreenContainer, this, this, this);
         webView.setWebChromeClient(chromeClient);
-        webView.setDownloadListener(new AppDownloadListener(this));
+        webView.setDownloadListener(new AppDownloadListener(this, requestHeaders));
+        requestLegacyPublicDownloadPermissionIfNeeded();
 
         retryButton.setOnClickListener(v -> {
             errorPanel.setVisibility(View.GONE);
@@ -83,7 +232,8 @@ public final class MainActivity extends Activity
         });
 
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
-            loadTrustedUrl(AppConfig.START_URL);
+            String deepLinkTarget = resolveDeepLinkTarget(getIntent());
+            loadTrustedUrl(deepLinkTarget.isEmpty() ? AppConfig.START_URL : deepLinkTarget);
         }
 
         if (Build.VERSION.SDK_INT >= 33) {
@@ -98,34 +248,83 @@ public final class MainActivity extends Activity
         webView.loadUrl(targetUrl, requestHeaders);
     }
 
+    private String resolveDeepLinkTarget(Intent intent) {
+        if (intent == null || intent.getData() == null) {
+            return "";
+        }
+        return DeepLinkResolver.resolve(
+                intent.getData().toString(),
+                AppConfig.DEEP_LINK_SCHEME,
+                AppConfig.START_URL,
+                navigationPolicy
+        );
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String target = resolveDeepLinkTarget(intent);
+        if (!target.isEmpty()) {
+            loadTrustedUrl(target);
+        }
+    }
+
+    private void requestLegacyPublicDownloadPermissionIfNeeded() {
+        boolean granted = checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED;
+        if (DownloadDestinationPolicy.needsLegacyWritePermission(
+                AppConfig.PUBLIC_DOWNLOADS_ENABLED,
+                Build.VERSION.SDK_INT,
+                granted
+        )) {
+            requestPermissions(
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    LEGACY_DOWNLOAD_PERMISSION_REQUEST
+            );
+        }
+    }
+
+    private int attributionBottomInsetDp() {
+        return SplashAttributionPolicy.footerInsetDp(
+                nativeNavigation == null ? AppConfig.BOTTOM_TABS_ENABLED : nativeNavigation.isBottomTabsVisible(),
+                nativeNavigation == null ? AppConfig.CONTEXTUAL_TOOLBAR_ENABLED : nativeNavigation.isContextualToolbarVisible()
+        );
+    }
+
     private void configureWindow() {
         Window window = getWindow();
-        window.setStatusBarColor(Color.BLACK);
-        window.setNavigationBarColor(Color.BLACK);
+        window.setStatusBarColor(
+                SystemBarStyle.parseRgb(AppConfig.STATUS_BAR_COLOR, Color.BLACK)
+        );
+        window.setNavigationBarColor(
+                SystemBarStyle.parseRgb(AppConfig.NAVIGATION_BAR_COLOR, Color.BLACK)
+        );
         if (AppConfig.KEEP_SCREEN_ON) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
     }
 
-    private void enterImmersiveMode() {
-        Window window = getWindow();
-        View decorView = window.getDecorView();
+    private void applyConfiguredSystemUi(boolean forceFullscreen) {
+        boolean fullscreen = forceFullscreen || AppConfig.IMMERSIVE_FULLSCREEN_ENABLED;
+        View decorView = getWindow().getDecorView();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 16 can throw inside PhoneWindow.getInsetsController() when it is
-            // queried before DecorView has been installed. Always obtain the controller
-            // from the actual DecorView and defer the request until the view is attached.
-            decorView.post(() -> {
-                WindowInsetsController controller = decorView.getWindowInsetsController();
-                if (controller == null) {
-                    return;
-                }
-                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
-                controller.setSystemBarsBehavior(
-                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                );
-            });
-        } else {
+        int statusColor = SystemBarStyle.parseRgb(AppConfig.STATUS_BAR_COLOR, Color.BLACK);
+        int navigationColor = SystemBarStyle.parseRgb(AppConfig.NAVIGATION_BAR_COLOR, Color.BLACK);
+        boolean darkStatusIcons = SystemBarStyle.shouldUseDarkIcons(statusColor);
+        boolean darkNavigationIcons = SystemBarStyle.shouldUseDarkIcons(navigationColor);
+
+        if (Build.VERSION.SDK_INT >= 30) {
+            Api30WindowHandler.setSystemUi(
+                    decorView,
+                    fullscreen,
+                    darkStatusIcons,
+                    darkNavigationIcons
+            );
+            return;
+        }
+
+        if (fullscreen) {
             decorView.setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_FULLSCREEN
                             | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
@@ -134,6 +333,37 @@ public final class MainActivity extends Activity
                             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                             | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             );
+            return;
+        }
+
+        int flags = View.SYSTEM_UI_FLAG_VISIBLE;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && darkStatusIcons) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && darkNavigationIcons) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
+        decorView.setSystemUiVisibility(flags);
+    }
+
+    @Override
+    public void openNewWindow(String url) {
+        String policy = NewWindowPolicy.normalize(AppConfig.NEW_WINDOW_POLICY);
+        if (NewWindowPolicy.BLOCKED.equals(policy)) {
+            return;
+        }
+
+        LinkRoutingPolicy.Action action = linkRoutingPolicy.actionFor(url);
+        if (NewWindowPolicy.INTERNAL.equals(policy)) {
+            if (action == LinkRoutingPolicy.Action.INTERNAL && navigationPolicy.isTrustedHttps(url)) {
+                loadTrustedUrl(url);
+            }
+            return;
+        }
+
+        if (NewWindowPolicy.EXTERNAL.equals(policy)
+                && action != LinkRoutingPolicy.Action.BLOCK) {
+            ExternalLinkLauncher.open(this, url);
         }
     }
 
@@ -173,43 +403,70 @@ public final class MainActivity extends Activity
     public void onPageLoading() {
         mainFrameFailed = false;
         errorPanel.setVisibility(View.GONE);
-        progressBar.setVisibility(View.VISIBLE);
+        pageTransition.onPageLoading();
+        loadingIndicator.show();
     }
 
     @Override
     public void onPageReady() {
-        progressBar.setVisibility(View.GONE);
+        loadingIndicator.hide();
+        pageTransition.onPageReady();
+        refreshLayout.setRefreshing(false);
         if (!mainFrameFailed) {
             errorPanel.setVisibility(View.GONE);
+            if (attributionBanner != null) {
+                attributionBanner.onFirstPageReady();
+            }
+        }
+        if (sessionCookieStore != null) {
+            sessionCookieStore.capture();
+        }
+    }
+
+    @Override
+    public void onNavigationUrlChanged(String url) {
+        if (nativeNavigation != null) {
+            nativeNavigation.updateHistoryState(url);
+        }
+        if (attributionBanner != null) {
+            attributionBanner.updateBottomInset(attributionBottomInsetDp());
         }
     }
 
     @Override
     public void onMainFrameError() {
         mainFrameFailed = true;
-        progressBar.setVisibility(View.GONE);
+        loadingIndicator.hide();
+        pageTransition.reset();
+        refreshLayout.setRefreshing(false);
         errorPanel.setVisibility(View.VISIBLE);
     }
 
     @Override
     public void onProgress(int progress) {
-        progressBar.setProgress(progress);
-        progressBar.setVisibility(progress >= 100 ? View.GONE : View.VISIBLE);
+        loadingIndicator.setProgress(progress);
     }
 
     @Override
     public void onFullscreenChanged(boolean fullscreen) {
         webView.setVisibility(fullscreen ? View.GONE : View.VISIBLE);
-        enterImmersiveMode();
+        applyConfiguredSystemUi(fullscreen);
     }
 
     @Override
     @SuppressWarnings("deprecation")
+    @android.annotation.SuppressLint("GestureBackNavigation")
     public void onBackPressed() {
+        // API 33+ back gestures are handled by Api33BackHandler. This override is
+        // intentionally retained only as the platform-compatible fallback for
+        // Android 6 through Android 12; lint cannot infer that version split.
         handleBackNavigation();
     }
 
     private void handleBackNavigation() {
+        if (nativeNavigation != null && nativeNavigation.handleBackPressed()) {
+            return;
+        }
         if (chromeClient != null && chromeClient.isShowingCustomView()) {
             chromeClient.onHideCustomView();
             return;
@@ -227,11 +484,15 @@ public final class MainActivity extends Activity
         if (webView != null) {
             webView.onResume();
         }
-        enterImmersiveMode();
+        boolean customFullscreen = chromeClient != null && chromeClient.isShowingCustomView();
+        applyConfiguredSystemUi(customFullscreen);
     }
 
     @Override
     protected void onPause() {
+        if (sessionCookieStore != null) {
+            sessionCookieStore.capture();
+        }
         if (webView != null) {
             webView.onPause();
         }
@@ -244,6 +505,51 @@ public final class MainActivity extends Activity
             webView.saveState(outState);
         }
         super.onSaveInstanceState(outState);
+    }
+
+    private static final class Api30WindowHandler {
+        private Api30WindowHandler() {
+        }
+
+        @android.annotation.TargetApi(30)
+        static void setSystemUi(
+                View decorView,
+                boolean fullscreen,
+                boolean darkStatusIcons,
+                boolean darkNavigationIcons
+        ) {
+            // Android 16 can throw inside PhoneWindow.getInsetsController() when it is
+            // queried before DecorView has been installed. Obtain the controller from
+            // the actual decor view and defer the request until that view is ready.
+            decorView.post(() -> {
+                android.view.WindowInsetsController controller = decorView.getWindowInsetsController();
+                if (controller == null) {
+                    return;
+                }
+
+                int appearance = 0;
+                int appearanceMask = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                if (darkStatusIcons) {
+                    appearance |= android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS;
+                }
+                if (darkNavigationIcons) {
+                    appearance |= android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                }
+                controller.setSystemBarsAppearance(appearance, appearanceMask);
+
+                int types = android.view.WindowInsets.Type.statusBars()
+                        | android.view.WindowInsets.Type.navigationBars();
+                if (fullscreen) {
+                    controller.hide(types);
+                    controller.setSystemBarsBehavior(
+                            android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    );
+                } else {
+                    controller.show(types);
+                }
+            });
+        }
     }
 
     private static final class Api33BackHandler {
@@ -261,9 +567,34 @@ public final class MainActivity extends Activity
 
     @Override
     protected void onDestroy() {
+        if (sessionCookieStore != null) {
+            sessionCookieStore.capture();
+            sessionCookieStore = null;
+        }
+        if (introController != null) {
+            introController.cancel();
+            introController = null;
+        }
+        if (attributionBanner != null) {
+            attributionBanner.cancel();
+            attributionBanner = null;
+        }
         if (pendingFileCallback != null) {
             pendingFileCallback.onReceiveValue(null);
             pendingFileCallback = null;
+        }
+        if (nativeNavigation != null) {
+            nativeNavigation.destroy();
+            nativeNavigation = null;
+        }
+        if (pageTransition != null) {
+            pageTransition.reset();
+            pageTransition = null;
+        }
+        if (refreshLayout != null) {
+            refreshLayout.setOnRefreshListener(null);
+            refreshLayout.setRefreshing(false);
+            refreshLayout = null;
         }
         if (webView != null) {
             webView.removeJavascriptInterface(AppConfig.NATIVE_MEDIA_BRIDGE_NAME);

@@ -1,10 +1,7 @@
 package de.starlightunit.wrapper.web;
 
-import android.content.ActivityNotFoundException;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Bitmap;
-import android.net.Uri;
 import android.net.http.SslError;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceError;
@@ -18,65 +15,115 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import de.starlightunit.wrapper.assets.QuantumAssetStore;
+import de.starlightunit.wrapper.assets.QuantumStartupAssetDownloader;
 import de.starlightunit.wrapper.config.AppConfig;
+import de.starlightunit.wrapper.navigation.ExternalLinkLauncher;
+import de.starlightunit.wrapper.navigation.LinkRoutingPolicy;
 import de.starlightunit.wrapper.navigation.NavigationPolicy;
 
 public final class GameWebViewClient extends WebViewClient {
     public interface Callbacks {
         void onPageLoading();
         void onPageReady();
+        void onNavigationUrlChanged(String url);
         void onMainFrameError();
     }
 
     private final Context context;
     private final NavigationPolicy navigationPolicy;
+    private final LinkRoutingPolicy linkRoutingPolicy;
     private final Callbacks callbacks;
     private final Map<String, String> requestHeaders;
     private final CampaignAudioHandoff campaignAudioHandoff;
     private final QuantumAssetStore assetStore;
+    private final QuantumStartupAssetDownloader startupAssetDownloader;
 
     public GameWebViewClient(
             Context context,
             NavigationPolicy navigationPolicy,
+            LinkRoutingPolicy linkRoutingPolicy,
             Callbacks callbacks,
             Map<String, String> requestHeaders
     ) {
         this.context = context;
         this.navigationPolicy = navigationPolicy;
+        this.linkRoutingPolicy = linkRoutingPolicy;
         this.callbacks = callbacks;
         this.requestHeaders = Collections.unmodifiableMap(new LinkedHashMap<>(requestHeaders));
         this.campaignAudioHandoff = new CampaignAudioHandoff(context);
-        this.assetStore = new QuantumAssetStore(
-                context,
-                AppConfig.ASSET_STORE_TRUSTED_HOST,
-                AppConfig.ASSET_STORE_PATH_PREFIX,
-                AppConfig.ASSET_STORE_EXCLUDED_PATH_PREFIX
-        );
+        this.assetStore = AppConfig.QUANTUM_ASSET_STORE_ENABLED
+                ? new QuantumAssetStore(
+                        context,
+                        AppConfig.ASSET_STORE_TRUSTED_HOST,
+                        AppConfig.ASSET_STORE_PATH_PREFIX,
+                        AppConfig.ASSET_STORE_EXCLUDED_PATH_PREFIX
+                )
+                : null;
+        this.startupAssetDownloader = assetStore != null && AppConfig.NATIVE_ASSET_DOWNLOADER_ENABLED
+                ? new QuantumStartupAssetDownloader(
+                        assetStore,
+                        AppConfig.ASSET_STORE_TRUSTED_HOST,
+                        AppConfig.ASSET_STORE_PATH_PREFIX,
+                        AppConfig.ASSET_STORE_EXCLUDED_PATH_PREFIX,
+                        AppConfig.ASSET_MANIFEST_URL,
+                        AppConfig.ASSET_DOWNLOADER_ROOTS
+                )
+                : null;
+        if (startupAssetDownloader != null) {
+            startupAssetDownloader.start(this.requestHeaders);
+        }
     }
 
     @Override
     public void onPageStarted(WebView view, String url, Bitmap favicon) {
+        callbacks.onNavigationUrlChanged(url);
         callbacks.onPageLoading();
+    }
+
+    @Override
+    public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
+        callbacks.onNavigationUrlChanged(url);
     }
 
     @Override
     public void onPageFinished(WebView view, String url) {
         if (navigationPolicy.isTrustedHttps(url)) {
+            WebOverrides.apply(view);
             campaignAudioHandoff.inject(view);
-            QuantumAssetWarmup.capture(view, assetStore, requestHeaders);
+            if (assetStore != null && AppConfig.ASSET_STORE_PAGE_WARMUP_ENABLED) {
+                view.postDelayed(
+                        () -> {
+                            if (navigationPolicy.isTrustedHttps(view.getUrl())) {
+                                QuantumAssetWarmup.capture(view, assetStore, requestHeaders);
+                            }
+                        },
+                        AppConfig.ASSET_STORE_PAGE_WARMUP_DELAY_MS
+                );
+            }
         }
+        // Finished callbacks can arrive for an earlier load after a redirect.
+        // Presentation follows the WebView's current URL, not that stale URL.
+        callbacks.onNavigationUrlChanged(view.getUrl());
         callbacks.onPageReady();
     }
 
     @Override
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-        if (!request.isForMainFrame()
+        if (assetStore != null
+                && !request.isForMainFrame()
                 && "GET".equalsIgnoreCase(request.getMethod())
                 && !hasHeader(request.getRequestHeaders(), "Range")) {
-            WebResourceResponse cached = assetStore.openCachedResponse(request.getUrl().toString());
+            String source = request.getUrl().toString();
+            WebResourceResponse cached = assetStore.openCachedResponse(source);
             if (cached != null) {
                 return cached;
             }
+
+            // Dynamic images can appear long after onPageFinished(), so they
+            // are invisible to QuantumAssetWarmup.capture(). Warm a trusted
+            // image miss in parallel while WebView still performs its normal
+            // request. A later retry/navigation can then be served natively.
+            assetStore.prefetchImageMiss(source, requestHeaders);
         }
         return super.shouldInterceptRequest(view, request);
     }
@@ -84,8 +131,10 @@ public final class GameWebViewClient extends WebViewClient {
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
         String url = request.getUrl().toString();
-        if (navigationPolicy.isTrustedHttps(url)) {
-            if (request.isForMainFrame()
+        LinkRoutingPolicy.Action action = linkRoutingPolicy.actionFor(url);
+        if (action == LinkRoutingPolicy.Action.INTERNAL) {
+            if (navigationPolicy.isTrustedHttps(url)
+                    && request.isForMainFrame()
                     && "GET".equalsIgnoreCase(request.getMethod())
                     && !WrapperRequestHeaders.containsConfiguredHeaders(request.getRequestHeaders())) {
                 view.loadUrl(url, requestHeaders);
@@ -93,13 +142,27 @@ public final class GameWebViewClient extends WebViewClient {
             }
             return false;
         }
-        return handleNavigation(url);
+        if (action == LinkRoutingPolicy.Action.EXTERNAL) {
+            ExternalLinkLauncher.open(context, url);
+        }
+        return true;
     }
 
     @SuppressWarnings("deprecation")
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
-        return handleNavigation(url);
+        LinkRoutingPolicy.Action action = linkRoutingPolicy.actionFor(url);
+        if (action == LinkRoutingPolicy.Action.INTERNAL) {
+            if (navigationPolicy.isTrustedHttps(url)) {
+                view.loadUrl(url, requestHeaders);
+                return true;
+            }
+            return false;
+        }
+        if (action == LinkRoutingPolicy.Action.EXTERNAL) {
+            ExternalLinkLauncher.open(context, url);
+        }
+        return true;
     }
 
     @Override
@@ -126,34 +189,12 @@ public final class GameWebViewClient extends WebViewClient {
     }
 
     public void close() {
-        assetStore.close();
-    }
-
-    private boolean handleNavigation(String url) {
-        if (navigationPolicy.shouldStayInWebView(url)) {
-            return false;
+        if (startupAssetDownloader != null) {
+            startupAssetDownloader.close();
         }
-
-        if (!isAllowedExternalScheme(url)) {
-            return true;
+        if (assetStore != null) {
+            assetStore.close();
         }
-
-        try {
-            Intent intent;
-            String scheme = Uri.parse(url).getScheme();
-            if ("intent".equalsIgnoreCase(scheme)) {
-                intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
-                intent.setComponent(null);
-                intent.setSelector(null);
-            } else {
-                intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-            }
-            intent.addCategory(Intent.CATEGORY_BROWSABLE);
-            context.startActivity(intent);
-        } catch (ActivityNotFoundException | SecurityException | java.net.URISyntaxException ignored) {
-            // Unsupported external targets are blocked instead of being loaded inside the game WebView.
-        }
-        return true;
     }
 
     private static boolean hasHeader(Map<String, String> headers, String expectedName) {
@@ -168,19 +209,4 @@ public final class GameWebViewClient extends WebViewClient {
         return false;
     }
 
-    private static boolean isAllowedExternalScheme(String url) {
-        Uri uri = Uri.parse(url);
-        String scheme = uri.getScheme();
-        if (scheme == null) {
-            return false;
-        }
-        String normalized = scheme.toLowerCase(java.util.Locale.ROOT);
-        return "https".equals(normalized)
-                || "http".equals(normalized)
-                || "mailto".equals(normalized)
-                || "tel".equals(normalized)
-                || "geo".equals(normalized)
-                || "market".equals(normalized)
-                || "intent".equals(normalized);
-    }
 }
